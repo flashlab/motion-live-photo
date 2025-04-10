@@ -178,3 +178,7 @@
 svg[role=button]:hover {
     color: green;
 }
+
+#meta_panel {
+    grid-template-columns: repeat(2, auto);
+}

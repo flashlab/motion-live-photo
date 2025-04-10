@@ -61,3 +61,24 @@ export function humanFileSize(bytes: number, si=false, dp=1) {
 
  return bytes.toFixed(dp) + ' ' + units[u];
 }
+
+/**
+ * Extracts the name and extension from a filename
+ * @param {string} filename - The filename to process
+ * @return {Object | null} containing the name and extension
+ */
+export function parseFileName(filename: any) {
+  let name = "";
+  let ext = "";
+
+  const lastDotIndex = filename.lastIndexOf('.');
+  
+  if (lastDotIndex === -1 || lastDotIndex === 0) {
+    name = filename;
+  } else {
+    name = filename.substring(0, lastDotIndex);
+    ext = filename.substring(lastDotIndex + 1);
+  }
+  
+  return { name: name, ext: ext };
+}

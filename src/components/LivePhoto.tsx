@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { cn } from '../lib/utils'
 
-export function LivePhoto({ url, videoUrl, className }: { url?: string; videoUrl?: string; className?: string }) {
+export function LivePhoto({ url, videoUrl, stamp, className }: { url?: string; videoUrl?: string; stamp?: number; className?: string }) {
   const livePhotoRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -15,6 +15,7 @@ export function LivePhoto({ url, videoUrl, className }: { url?: string; videoUrl
           photoSrc: url,
           videoSrc: videoUrl,
           showsNativeControls: true,
+          photoTime: (stamp && stamp >= 0) ? stamp : null
         })
       }
     };
