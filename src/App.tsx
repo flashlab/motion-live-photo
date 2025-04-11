@@ -205,13 +205,13 @@ function App() {
   const handleUpload = async () => {
     setLoading(true);
     setProgress(0);
-    const uploadFile: any = {mov: convertedVideoUrl};
-    for (const mime in uploadFile) {
-      if (!uploadFile[mime]) continue;
-      const realEndPoint = endPoint.replace("{filename}", `${fileName}.${mime}`);
-      const blob = await fetch(uploadFile[mime].url).then(r => r.blob());
+    const uploadFile: (BlobUrl| null)[] = [convertedVideoUrl, convertedImageUrl];
+    for (const media of uploadFile) {
+      if (!media) continue;
+      const realEndPoint = endPoint.replace("{filename}", `${fileName}.${media.filetype}`);
+      const blob = await fetch(media.url).then(r => r.blob());
       const formData = new FormData();
-      formData.append('file', blob, `${fileName}.${mime}`);
+      formData.append('file', blob, `${fileName}.${media.filetype}`);
       const xhr = new XMLHttpRequest();
       const uploadPromise = new Promise<void>((resolve, reject) => {
         xhr.upload.addEventListener('progress', (e) => {
@@ -234,15 +234,15 @@ function App() {
       uploadPromise
         .then(() => {
           toast({
-            description: `🚀 Uploaded: ${fileName}.${mime}`,
+            description: `🚀 Uploaded: ${fileName}.${media.filetype}`,
           });
         })
         .catch((err) => {
           toast({
-            description: `⚠️ Error uploading ${fileName}.${mime}: ${err}`,
+            description: `⚠️ Error uploading ${fileName}.${media.filetype}: ${err}`,
           });
         }).finally(() => {
-          if (mime == "mov") setLoading(false);
+          if (media.filetype == "mov") setLoading(false);
           setProgress(0);
         });
     }
