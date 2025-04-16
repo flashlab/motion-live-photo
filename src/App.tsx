@@ -41,7 +41,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { LivePhoto, LivePhotoIcon } from '@/components/LivePhoto';
 import { resizeDimensions, humanFileSize, parseFileName } from '@/lib/utils';
-import readMotion from "./lib/extractmotion";
 
 interface MediaDimensions {
   width: number;
@@ -53,6 +52,8 @@ interface BlobUrl {
   size: number;
   filetype: string;
 }
+
+const fileWorker = new Worker(new URL('./lib/extractmotion.ts', import.meta.url), {type: "module"});
 
 function App() {
   const [loaded, setLoaded] = useState(false);
@@ -105,6 +106,29 @@ function App() {
     multiple: false,
     disabled: loading, // Disable dropzone while loading
   });
+
+  fileWorker.onmessage = (e: MessageEvent) => {
+    switch (e.data.type) {
+      case "res":
+        if (videoRef.current) videoRef.current.src = e.data.video.url;
+        setVideoFile(e.data.video);
+        setImageFile(e.data.image);
+        setCaptureStamp(e.data.video.stamp/1000000);
+        toast({
+          description: "🚀 Motion photo loaded.",
+        });
+        break;
+      case "log":
+        setLogMessages((prev) => [...prev, e.data.msg]);
+        break;
+      case "err":
+        setImageFile({url: URL.createObjectURL(e.data.rawfile), size: e.data.rawfile.size, filetype: "jpg"});
+        setMediaTab("image");
+        toast({
+          description: `🚀 Image loaded, Not motion: ${e.data.msg}`,
+        });
+    }
+  }
 
   const onLoadedMetadata = () => {
     if (!videoRef.current) return;
@@ -209,27 +233,7 @@ function App() {
     setLoading(false);
     // check if motion photo or video file.
     if (ext === "jpg") {
-      readMotion(file).then(
-        data => {
-          if (videoRef.current) videoRef.current.src = data[0].url;
-          setVideoFile(data[0]);
-          setImageFile(data[1]);
-          setCaptureStamp(data[2].size/1000000);
-          setLogMessages((prev) => [...prev, ...data[2].url]);
-          toast({
-            description: "🚀 Motion photo loaded.",
-          });
-        }, err => {
-          toast({
-            description: err,
-          });
-          setImageFile({url: URL.createObjectURL(file), size: file.size, filetype: "jpg"});
-          setMediaTab("image");
-          toast({
-            description: "🚀 Image loaded, Not motion!",
-          });
-        }
-      );
+      fileWorker.postMessage(file)
     } else {
       const newfile = URL.createObjectURL(file);
       if (videoRef.current) videoRef.current.src = newfile;
