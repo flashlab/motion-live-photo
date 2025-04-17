@@ -36,7 +36,7 @@ onmessage = async (e: MessageEvent<File>) => {
       }
     } else {
       const xmpString = fileString.slice(xmpStart, xmpEnd);
-      postMessage(xmpString);
+      postMessage({type: "log", msg: xmpString});
       const matches = xmpString.matchAll(/<Container:Item[^>]*\bItem:Mime=["']video\/mp4["'][^>]*\bItem:Length=["'](\d+)["'][^>]*\/>/g);
       const matches_alt = xmpString.matchAll(/GCamera:MicroVideoOffset=["'](\d+)["']/g);
       const matches_stamp = xmpString.matchAll(/PresentationTimestampUs=["'](\d+)["']/g);

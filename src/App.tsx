@@ -114,6 +114,7 @@ function App() {
         setVideoFile(e.data.video);
         setImageFile(e.data.image);
         setCaptureStamp(e.data.video.stamp/1000000);
+        setLoading(false);
         toast({
           description: "🚀 Motion photo loaded.",
         });
@@ -124,19 +125,45 @@ function App() {
       case "err":
         setImageFile({url: URL.createObjectURL(e.data.rawfile), size: e.data.rawfile.size, filetype: "jpg"});
         setMediaTab("image");
+        setLoading(false);
         toast({
           description: `🚀 Image loaded, Not motion: ${e.data.msg}`,
         });
-    }
-  }
+    };
+  };
+
+  fileWorker.onerror = () => {
+    toast({
+      description: `⚠️ Error while extracting motion photo.`,
+    });
+    setLoading(false);
+  };
 
   const onLoadedMetadata = () => {
     if (!videoRef.current) return;
-    const { videoWidth, videoHeight } = videoRef.current;
-    setVideoDimension({
-      width: videoWidth,
-      height: videoHeight,
-    });
+    if (videoRef.current.src === videoFile?.url) {
+      const { videoWidth, videoHeight } = videoRef.current;
+      setVideoDimension({
+        width: videoWidth,
+        height: videoHeight,
+      })
+    } else if (!videoDimension) {
+      // use log dimension if original video not loaded
+      const videoLogStart = logMessages.findIndex(v => /input\.mp4/.test(v));
+      if (videoLogStart > 0) {
+        // Search for dimensions and rotaion in 25 next logs
+        const videoLogSlice = logMessages.slice(videoLogStart, videoLogStart + 25);
+        const ffHWline = videoLogSlice.find(v => /Stream.*?Video.*?,\s\d+x\d+,/.test(v));
+        if (ffHWline) {
+          const ffHW = ffHWline.match(/,\s(\d+)x(\d+),/);
+          const isRotate = videoLogSlice.some((v) => /-90\.00\sdegrees/.test(v));
+          if (ffHW)
+            setVideoDimension({width: ffHW[isRotate ? 2 : 1] as unknown as number,
+                              height: ffHW[isRotate ? 1 : 2] as unknown as number
+          });
+        };
+      };
+    }
   };
 
   const onVideoError = () => {
@@ -233,7 +260,8 @@ function App() {
     setLoading(false);
     // check if motion photo or video file.
     if (ext === "jpg") {
-      fileWorker.postMessage(file)
+      setLoading(true);
+      fileWorker.postMessage(file);
     } else {
       const newfile = URL.createObjectURL(file);
       if (videoRef.current) videoRef.current.src = newfile;
@@ -410,17 +438,8 @@ function App() {
         const blob = new Blob([data], { type: "video/quicktime" });
         const newfile = URL.createObjectURL(blob);
         setConvertedVideoUrl({url: newfile, size: blob.size, filetype: "mov"});
-        if (!videoDimension) {
-          if (videoRef.current) videoRef.current.src = newfile;
-          const videoLogStart = logMessages.findIndex(v => /input\.mp4/.test(v));
-          if (videoLogStart > 0) {
-            const ffHWline = logMessages.slice(videoLogStart, videoLogStart + 20).find(v => /Stream.*?Video.*?,\s\d+x\d+,/.test(v));
-            if (ffHWline) {
-              const ffHW = ffHWline.match(/(\d+)x(\d+)/);
-              if (ffHW) setVideoDimension({width: ffHW[1] as unknown as number, height: ffHW[2] as unknown as number})
-            }
-          }
-        }
+        // use converted video if raw video broken
+        if (videoRef.current && videoRef.current.readyState < HTMLMediaElement.HAVE_METADATA) videoRef.current.src = newfile;
         toast({
           description: `🚀 Success transcode video，try clicking on live photo tab.`,
         });
@@ -488,8 +507,17 @@ function App() {
                 className="mt-2"
                 disabled={loading} // Disable the button while loading
               >
-                <Upload className="h-4 w-4" />
-                Select Media
+                {loading ? (
+                  <>
+                    <Loader className="animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    Select Media
+                  </>
+                )}
               </Button>
             </div>
 
@@ -831,11 +859,9 @@ function App() {
                     onScroll={handleScroll}
                     className={`mt-2 rounded-md overflow-auto max-h-60 overscroll-auto md:overscroll-contain`}
                   >
-                    {logMessages.map((message, index) => (
-                      <pre key={index} className="p-2 text-sm">
-                        {message}
-                      </pre>
-                    ))}
+                    <pre className="p-2 text-sm">
+                      {logMessages.join("\n")}
+                    </pre>
                   </div>
                 </AccordionContent>
               </AccordionItem>
