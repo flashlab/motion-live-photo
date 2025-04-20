@@ -1,4 +1,5 @@
 import {Accordion, AccordionContent, AccordionItem, AccordionTrigger} from "@/components/ui/accordion";
+import {TooltipProvider, Tooltip, TooltipContent, TooltipTrigger} from "@/components/mobile-tooltip";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SiteFooter } from "@/components/site-footer";
@@ -37,7 +38,7 @@ import {
   MoveVertical,
   RotateCcw,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { LivePhoto, LivePhotoIcon } from '@/components/LivePhoto';
 import { resizeDimensions, humanFileSize, parseFileName } from '@/lib/utils';
@@ -61,7 +62,9 @@ function App() {
   const [progress, setProgress] = useState(0);
   const [logMessages, setLogMessages] = useState<string[]>([]);
   const [mediaTab, setMediaTab] = useState("video");
-  const loadStorageJson = (key: string) => {try { return JSON.parse(localStorage.getItem(key) ?? '') } catch(err) { return undefined }};
+  const loadStorageJson = (key: string) => {
+    try { return JSON.parse(localStorage.getItem(key) ?? '') } catch(err) { return undefined }
+  };
 
   const [fileName, setfileName] = useState<string>("");
   const [captureStamp, setCaptureStamp] = useState<number>(-1);
@@ -185,6 +188,12 @@ function App() {
     setMediaTab(value);
   }
 
+  const onSetDimensions = (e: ChangeEvent<HTMLInputElement>, n: number) => {
+    setMaxDimensions(
+      maxDimensions.map((c, i) => {return i === n ? e.target.value as unknown as number : c})
+    )
+  }
+
   const handleSaveConfig = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const configs = serverConfig;
@@ -301,7 +310,7 @@ function App() {
         };
       });
       xhr.open(usePost ? 'POST' : 'PUT', `${realEndPoint}`, true);
-      xhr.setRequestHeader('Authorization', endPointToken);
+      if (endPointToken) xhr.setRequestHeader('Authorization', endPointToken);
       xhr.send(usePost ? formData : blob);
       uploadPromise
         .then(() => {
@@ -405,9 +414,6 @@ function App() {
         const data = await ffmpeg.readFile("output.jpg");
         const imageBlob = new Blob([data], { type: "image/jpeg" });
         setconvertedImageUrl({url: URL.createObjectURL(imageBlob), size: imageBlob.size, filetype: "jpg"});
-        toast({
-          description: `🚀 Success transcode image`,
-        });
       } catch (e) {
         toast({
           description: `⚠️ Error transcoding image: ${e}, try again later`,
@@ -440,9 +446,6 @@ function App() {
         setConvertedVideoUrl({url: newfile, size: blob.size, filetype: "mov"});
         // use converted video if raw video broken
         if (videoRef.current && videoRef.current.readyState < HTMLMediaElement.HAVE_METADATA) videoRef.current.src = newfile;
-        toast({
-          description: `🚀 Success transcode video，try clicking on live photo tab.`,
-        });
       } catch (e) {
         toast({
           description: `⚠️ Error transcoding video: ${e}, try again later`,
@@ -453,8 +456,12 @@ function App() {
     ffmpeg.off("log", logListener);
     ffmpeg.off("progress", progListener);
     setLoading(false);
+    toast({
+      description: `🚀 Finish transcoding，try clicking on live photo tab.`,
+    });
     // if (!dimensions && (videoFile || imageFile)) {
-    //   await ffmpeg.ffprobe(["-v", "error", "-select_streams", "v", "-show_entries", "stream=width\\,height", "-of", "csv=p=0:s=x",
+    //   await ffmpeg.ffprobe(
+    // ["-v", "error", "-select_streams", "v", "-show_entries", "stream=width\\,height", "-of", "csv=p=0:s=x",
     //     videoFile ? 'input.mp4' : 'input.jpg',
     //     "-o", "output.txt"
     //   ])
@@ -607,9 +614,18 @@ function App() {
                 }}
                 disabled={loading || typeof SharedArrayBuffer !== "function"}
               />
-              <label className="text-xs inline mr-3">
-                Multithreading
-              </label>
+              <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <label className="text-xs inline mr-3">
+                          Multithreading
+                        </label>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Multi-threaded core is faster, but unstable and not supported by all browsers.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
 
               <Switch
                 checked={keepAudio}
@@ -631,7 +647,12 @@ function App() {
                   <div className="grid gap-4">
                     <div className="space-y-2">
                       <h4 className="font-medium leading-none">Dimensions</h4>
-                      <RotateCcw size={20} className="absolute right-2 top-4" role="button" onClick={() => setMaxDimensions(defaultDimension)} />
+                      <RotateCcw
+                        size={20} 
+                        className="absolute right-2 top-4"
+                        role="button"
+                        onClick={() => setMaxDimensions(defaultDimension)}
+                      />
                       <p className="text-sm text-muted-foreground">
                         Set max pixels for the new media.
                       </p>
@@ -643,7 +664,7 @@ function App() {
                         <Input
                           id="iwidth"
                           type="number"
-                          onChange={(e) => setMaxDimensions(maxDimensions.map((c, i) => {return i == 0 ? e.target.value as unknown as number : c}))}
+                          onChange={(e) => onSetDimensions(e, 0)}
                           value={maxDimensions[0]}
                         />
                       </div>
@@ -652,7 +673,7 @@ function App() {
                         <Input
                           id="iheight"
                           type="number"
-                          onChange={(e) => setMaxDimensions(maxDimensions.map((c, i) => {return i == 1 ? e.target.value as unknown as number : c}))}
+                          onChange={(e) => onSetDimensions(e, 1)}
                           value={maxDimensions[1]}
                         />
                       </div>
@@ -661,7 +682,7 @@ function App() {
                         <Input
                           id="vwidth"
                           type="number"
-                          onChange={(e) => setMaxDimensions(maxDimensions.map((c, i) => {return i == 2 ? e.target.value as unknown as number : c}))}
+                          onChange={(e) => onSetDimensions(e, 2)}
                           value={maxDimensions[2]}
                         />
                       </div>
@@ -670,7 +691,7 @@ function App() {
                         <Input
                           id="vheight"
                           type="number"
-                          onChange={(e) => setMaxDimensions(maxDimensions.map((c, i) => {return i == 3 ? e.target.value as unknown as number : c}))}
+                          onChange={(e) => onSetDimensions(e, 3)}
                           value={maxDimensions[3]}
                         />
                       </div>
@@ -776,7 +797,15 @@ function App() {
                   <label htmlFor="api-url">
                     API URL
                   </label>
-                  <CircleAlert size={16} />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <CircleAlert size={16} />
+                      </TooltipTrigger>
+                      <TooltipContent>Use <code>{`{filename}`}</code> to represent file name in url</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
                 </div>
                 <DropdownInput
                   required
@@ -795,7 +824,14 @@ function App() {
                   <label htmlFor="token">
                     Authorization Token
                   </label>
-                  <CircleAlert size={16} />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <CircleAlert size={16} />
+                      </TooltipTrigger>
+                      <TooltipContent>Authorization key value in request header</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
                 <Input
                   id="token"
@@ -803,7 +839,6 @@ function App() {
                   placeholder="Bearer token123..."
                   value={endPointToken}
                   onChange={(e) => setEndPointToken(e.target.value)}
-                  required
                 />
                 <div className="flex items-center mt-4 space-x-2">
                   <Switch
