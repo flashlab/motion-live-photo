@@ -19,11 +19,11 @@ export function resizeDimensions(originalWidth: number, originalHeight: number, 
   const aspectRatio = originalWidth / originalHeight;
   let newWidth = originalWidth;
   let newHeight = originalHeight;
-  if (newWidth > maxWidth) {
+  if (newWidth > maxWidth && maxWidth > 0) {
     newWidth = maxWidth;
     newHeight = Math.floor(newWidth / aspectRatio);
   }
-  if (newHeight > maxHeight) {
+  if (newHeight > maxHeight && maxHeight > 0) {
     newHeight = maxHeight;
     newWidth = Math.floor(newHeight * aspectRatio);
   }
@@ -67,7 +67,7 @@ export function humanFileSize(bytes: number, si=false, dp=1) {
  * @param {string} filename - The filename to process
  * @return {Object | null} containing the name and extension
  */
-export function parseFileName(filename: any) {
+export function parseFileName(filename: string) {
   let name = "";
   let ext = "";
 

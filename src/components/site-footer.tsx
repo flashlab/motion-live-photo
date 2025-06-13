@@ -4,7 +4,7 @@ export function SiteFooter() {
       <div className="container-wrapper">
         <div className="container pt-2">
           <div className="text-balance text-center text-sm leading-loose text-muted-foreground md:text-left">
-            Built by{" "}
+            🌱 Built by{" "}
             <a
               href="https://github.com/flashlab"
               target="_blank"
@@ -13,7 +13,7 @@ export function SiteFooter() {
             >
               flashlab
             </a>
-            . The source code is available on{" "}
+            . Open source on{" "}
             <a
               href="https://github.com/flashlab/motion-live-photo"
               target="_blank"

@@ -1,3 +1,5 @@
+import { parseFileName } from "@/lib/utils";
+
 const indexOfSubarrayOptimized = (array: Uint8Array, subarray: Uint8Array) => {
   const firstByte = subarray[0];
   const subLength = subarray.length;
@@ -14,6 +16,7 @@ const indexOfSubarrayOptimized = (array: Uint8Array, subarray: Uint8Array) => {
 
 onmessage = async (e: MessageEvent<File>) => {
   const reader = new FileReader();
+  const {name} = parseFileName(e.data.name);
   reader.onload = () => {
     const arrayBuffer = reader.result as ArrayBuffer;
     const uint8Array = new Uint8Array(arrayBuffer);
@@ -83,8 +86,8 @@ onmessage = async (e: MessageEvent<File>) => {
     const jpegData = uint8Array.slice(0, videoStart);
     const imageBlob = new Blob([jpegData], { type: "image/jpeg" });
 
-    return postMessage({video: {url: URL.createObjectURL(blob), size: blob.size, filetype: "mp4"},
-                        image: {url: URL.createObjectURL(imageBlob), size: imageBlob.size, filetype: "jpg"},
+    return postMessage({video: {url: URL.createObjectURL(blob), size: blob.size, name: name+"_embed", ext: "mp4", embed: true},
+                        image: {url: URL.createObjectURL(imageBlob), size: imageBlob.size, name: name+"_embed", ext: "jpg", embed: true},
                         stamp: photoStamp,
                         type: "res"
     });

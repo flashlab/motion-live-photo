@@ -9,7 +9,7 @@ import DropdownInput from "@/components/droplist-input";
 import { Button } from "@/components/ui/button";
 import { Input } from '@/components/ui/input';
 import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -18,26 +18,6 @@ import { useToast } from "@/hooks/use-toast";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import { FFMPEG_URL } from "@/lib/const";
-import {
-  Download,
-  UploadIcon,
-  FilePlus,
-  Loader,
-  Play,
-  RotateCw,
-  Upload,
-  ChevronDown,
-  Video,
-  ArrowRight,
-  Image,
-  Trash2,
-  ImageUpscale,
-  SaveAll,
-  CircleAlert,
-  MoveHorizontal,
-  MoveVertical,
-  RotateCcw,
-} from "lucide-react";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { LivePhoto, LivePhotoIcon } from '@/components/LivePhoto';
@@ -51,8 +31,34 @@ interface MediaDimensions {
 interface BlobUrl {
   url: string;
   size: number;
-  filetype: string;
+  ext: string;
+  name: string;
+  embed?: boolean;
 }
+
+import {
+  Download,
+  UploadIcon,
+  Loader,
+  Play,
+  RotateCw,
+  Upload,
+  ChevronDown,
+  Video,
+  FileVideo2,
+  ArrowRight,
+  Aperture,
+  FileImage,
+  Trash2,
+  ImageUpscale,
+  SaveAll,
+  CircleAlert,
+  MoveHorizontal,
+  MoveVertical,
+  Infinity,
+  RefreshCcwDot,
+  Camera,
+} from "lucide-react";
 
 const fileWorker = new Worker(new URL('./lib/extractmotion.ts', import.meta.url), {type: "module"});
 
@@ -66,12 +72,12 @@ function App() {
     try { return JSON.parse(localStorage.getItem(key) ?? '') } catch(err) { return undefined }
   };
 
-  const [fileName, setfileName] = useState<string>("");
-  const [captureStamp, setCaptureStamp] = useState<number>(-1);
   const [videoFile, setVideoFile] = useState<BlobUrl | null>(null);
   const [imageFile, setImageFile] = useState<BlobUrl | null>(null);
   const [convertedVideoUrl, setConvertedVideoUrl] = useState<BlobUrl | null>(null);
   const [convertedImageUrl, setconvertedImageUrl] = useState<BlobUrl | null>(null);
+  const [captureStamp, setCaptureStamp] = useState<number>(-1);  //seconds
+  const [extractStamp, setExtractStamp] = useState<number>(0);
 
   const defaultDimension = [1008, 1344, 720, 960];
   const [maxDimensions, setMaxDimensions] = useState<number[]>(loadStorageJson("defaultDimension") ?? defaultDimension);
@@ -97,14 +103,17 @@ function App() {
   const logContainerRef = useRef<HTMLDivElement | null>(null);
   const shouldAutoScrollRef = useRef(true);
 
-  const isMotion = useMemo(() => !!(videoFile && imageFile), [videoFile, imageFile]);
   const isFileSelect = useMemo(() => !!(videoFile || imageFile), [videoFile, imageFile]);
+  const [isConvert, setIsConvert] = useState(3);
+  const [isUpload, setIsUpload] = useState(12);
+  const [isExtractRaw, setisExtractRaw] = useState(1);
   const [isCoreMT, setIsCoreMT] = useState(false);
   const { toast } = useToast();
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (files) => files[0] && handleFileSelect(files[0]),
     accept: {
-      "video/*": [".mp4", ".jpg"],
+      "video/*": [".mp4", ".mov", ".ogg", ".webm"],
+      "image/*": [],
     },
     multiple: false,
     disabled: loading, // Disable dropzone while loading
@@ -126,7 +135,8 @@ function App() {
         setLogMessages((prev) => [...prev, e.data.msg]);
         break;
       case "err":
-        setImageFile({url: URL.createObjectURL(e.data.rawfile), size: e.data.rawfile.size, filetype: "jpg"});
+        const {name} = parseFileName(e.data.name);
+        setImageFile({url: URL.createObjectURL(e.data.rawfile), name: name, size: e.data.rawfile.size, ext: "jpg"});
         setMediaTab("image");
         setLoading(false);
         toast({
@@ -234,7 +244,7 @@ function App() {
       if (!media) continue;
       const link = document.createElement("a");
       link.href = media.url;
-      link.download = `${fileName}_new.${media.filetype}`;
+      link.download = `${media.name}.${media.ext}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -244,54 +254,34 @@ function App() {
   const handleFileSelect = (file: File): void => {
     // get file name
     const {name, ext} = parseFileName(file.name);
-    setfileName(name);
-
-    if (!imageFile || videoFile || ext === "jpg") {
-      // Feel free to remove image related stuff
-      if (convertedImageUrl) URL.revokeObjectURL(convertedImageUrl.url);
-      if (imageFile) URL.revokeObjectURL(imageFile.url);
-      setconvertedImageUrl(null);
-      setImageFile(null);
-      setImageDimension(null);
-    }
-    // release existing object URL
-    if (convertedVideoUrl) URL.revokeObjectURL(convertedVideoUrl.url);
-    if (videoFile) URL.revokeObjectURL(videoFile.url);
-    
-    // clean log and error message
-    setLogMessages([]);
-    // clean file handler
-    setConvertedVideoUrl(null);
-    setVideoFile(null);
-    setVideoDimension(null);
-    // reset statment
-    setProgress(0);
-    setLoading(false);
-    // check if motion photo or video file.
-    if (ext === "jpg") {
-      setLoading(true);
-      fileWorker.postMessage(file);
-    } else {
+    if (file.type.startsWith("video/")) {
       const newfile = URL.createObjectURL(file);
       if (videoRef.current) videoRef.current.src = newfile;
-      setVideoFile({url: newfile, size: file.size, filetype: ext});
+      setVideoFile({url: newfile, size: file.size, name: name, ext: ext});
+      setLoading(false);
       setMediaTab("video");
       toast({
         description: "🚀 Video file loaded. ",
       });
+    } else {
+      setLoading(true);
+      fileWorker.postMessage(file);
     }
   };
 
   const handleUpload = async () => {
+    let uploadCount = 0;
     setLoading(true);
     setProgress(0);
-    const uploadFile: (BlobUrl| null)[] = [convertedVideoUrl, convertedImageUrl];
+    const uploadFile: (BlobUrl)[] = [imageFile, videoFile, convertedImageUrl, convertedVideoUrl].filter(
+      (o, i): o is BlobUrl => o !== null && (isUpload & (2**i)) !== 0
+    );
     for (const media of uploadFile) {
-      if (!media) continue;
-      const realEndPoint = endPoint.replace("{filename}", `${fileName}.${media.filetype}`);
+      const fullName = `${media.name}.${media.ext}`;
+      const realEndPoint = endPoint.replace("{filename}", fullName);
       const blob = await fetch(media.url).then(r => r.blob());
       const formData = new FormData();
-      formData.append('file', blob, `${fileName}.${media.filetype}`);
+      formData.append('file', blob, fullName);
       const xhr = new XMLHttpRequest();
       const uploadPromise = new Promise<void>((resolve, reject) => {
         xhr.upload.addEventListener('progress', (e) => {
@@ -315,19 +305,19 @@ function App() {
       uploadPromise
         .then(() => {
           toast({
-            description: `🚀 Uploaded: ${fileName}.${media.filetype}`,
+            description: `🚀 Uploaded: ${fullName}`,
           });
         })
         .catch((err) => {
           toast({
-            description: `⚠️ Error uploading ${fileName}.${media.filetype}: ${err}`,
+            description: `⚠️ Error uploading ${fullName}: ${err}`,
           });
         }).finally(() => {
-          if (media.filetype == "mov") setLoading(false);
+          if (++uploadCount >= uploadFile.length) setLoading(false);
           setProgress(0);
         });
     }
-  }
+  };
 
   const load = async (mt: boolean = false) => {
     setLoading(true);
@@ -373,17 +363,51 @@ function App() {
   };
 
   const transcode = async () => {
-    if (!isFileSelect) return;
+    ffexec({obj: (imageFile && (isConvert & 1) !== 0) ? imageFile : null, arg: 1},
+           {obj: (videoFile && (isConvert & 2) !== 0) ? videoFile : null, arg: 2});
+  };
+  
+  const extractjpg = async () => {
+    ffexec({obj: null, arg: 0}, {obj: isExtractRaw == 2 ? convertedVideoUrl : videoFile, arg: 3})
+  };
+
+  const ffexec = async (img: { obj: BlobUrl | null; arg: number; }, film: { obj: BlobUrl | null; arg: number; }) => {
+    if (!img.obj && !film.obj) return;
     setLoading(true);
     setProgress(0);
-    if (convertedImageUrl) URL.revokeObjectURL(convertedImageUrl.url);
-    setconvertedImageUrl(null);
-    if (convertedVideoUrl) URL.revokeObjectURL(convertedVideoUrl.url);
-    setConvertedVideoUrl(null);
 
+    const ffmpegArgs = [["-v", "error", "-select_streams", "v", "-show_entries", "stream=width\\,height", "-of", "csv=p=0:s=x",
+          videoFile ? 'input.mp4' : 'input.jpg',
+          "-o", "output.txt"], [
+          "-v",
+          "level+info",
+          "-i",
+          "input.jpg",
+          "-vf",
+          `scale=min(${maxDimensions[0]}\\,iw):min(${maxDimensions[1]}\\,ih):force_original_aspect_ratio=decrease`,
+          "output.jpg",
+        ], [
+          "-v",
+          "level+info",
+          "-i",
+          "input.mp4",
+          ...["-vf", `scale=min(${maxDimensions[2]}\\,iw):min(${maxDimensions[3]}\\,ih):force_original_aspect_ratio=decrease`],
+          ...["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"],
+          ...keepAudio ? ["-acodec", "copy"] : ["-an"],
+          "output.mov",
+        ], [
+          "-v",
+          "level+info",
+          "-i",
+          "input.mp4",
+          "-ss",
+          `${Math.floor(extractStamp*1000)}ms`,
+          "-frames:v",
+          "1",
+          "extract.jpg"
+        ]]
     const ffmpeg = ffmpegRef.current;
 
-    
     // Listen to progress event instead of log.
     // progress event is experimental, be careful when using it
     // @ts-ignore
@@ -395,62 +419,52 @@ function App() {
     }
     ffmpeg.on("progress", progListener);
     ffmpeg.on("log", logListener);
-    if (imageFile) {
+    if (img.obj) {
       await ffmpeg.writeFile(
         "input.jpg",
-        await fetchFile(imageFile.url),
+        await fetchFile(img.obj.url),
       );
       try {
-        await ffmpeg.exec([
-          "-v",
-          "level+info",
-          "-i",
-          "input.jpg",
-          "-vf",
-          `scale=min(${maxDimensions[0]}\\,iw):min(${maxDimensions[1]}\\,ih):force_original_aspect_ratio=decrease`,
-          "output.jpg",
-        ]);
-
+        await ffmpeg.exec(ffmpegArgs[img.arg]);
         const data = await ffmpeg.readFile("output.jpg");
         const imageBlob = new Blob([data], { type: "image/jpeg" });
-        setconvertedImageUrl({url: URL.createObjectURL(imageBlob), size: imageBlob.size, filetype: "jpg"});
+        setconvertedImageUrl({url: URL.createObjectURL(imageBlob), size: imageBlob.size, name: imageFile!.name+"_new", ext: "jpg"});
       } catch (e) {
         toast({
           description: `⚠️ Error transcoding image: ${e}, try again later`,
         });
         await load(isCoreMT);
+        setconvertedImageUrl(null);
         setLoading(true);
       }
     }
-    if (videoFile) {
+    if (film.obj) {
       await ffmpeg.writeFile(
         "input.mp4",
-        await fetchFile(videoFile.url),
+        await fetchFile(film.obj.url),
       );
       try {
-        await ffmpeg.exec([
-          "-v",
-          "level+info",
-          "-i",
-          "input.mp4",
-          "-vf",
-          `scale=min(${maxDimensions[2]}\\,iw):min(${maxDimensions[3]}\\,ih):force_original_aspect_ratio=decrease`,
-          ...["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"],
-          ...keepAudio ? ["-acodec", "copy"] : ["-an"],
-          "output.mov",
-        ]);
-
-        const data = await ffmpeg.readFile("output.mov");
-        const blob = new Blob([data], { type: "video/quicktime" });
-        const newfile = URL.createObjectURL(blob);
-        setConvertedVideoUrl({url: newfile, size: blob.size, filetype: "mov"});
-        // use converted video if raw video broken
-        if (videoRef.current && videoRef.current.readyState < HTMLMediaElement.HAVE_METADATA) videoRef.current.src = newfile;
+        await ffmpeg.exec(ffmpegArgs[film.arg]);
+        if (film.arg === 3) {
+          const data = await ffmpeg.readFile("extract.jpg");
+          const blob = new Blob([data], { type: "image/jpeg" });
+          const newfile = URL.createObjectURL(blob);
+          setImageFile({url: newfile, size: blob.size, name: film.obj.name, ext: "jpg"});
+          setCaptureStamp(extractStamp);
+        } else {
+          const data = await ffmpeg.readFile("output.mov");
+          const blob = new Blob([data], { type: "video/quicktime" });
+          const newfile = URL.createObjectURL(blob);
+          setConvertedVideoUrl({url: newfile, size: blob.size, name: film.obj.name, ext: "mov"});
+          // use converted video if raw video broken
+          if (videoRef.current && videoRef.current.readyState < HTMLMediaElement.HAVE_METADATA) videoRef.current.src = newfile;
+        }
       } catch (e) {
         toast({
           description: `⚠️ Error transcoding video: ${e}, try again later`,
         });
         setProgress(0);
+        setConvertedVideoUrl(null);
       }
     }
     ffmpeg.off("log", logListener);
@@ -459,13 +473,51 @@ function App() {
     toast({
       description: `🚀 Finish transcoding，try clicking on live photo tab.`,
     });
-    // if (!dimensions && (videoFile || imageFile)) {
-    //   await ffmpeg.ffprobe(
-    // ["-v", "error", "-select_streams", "v", "-show_entries", "stream=width\\,height", "-of", "csv=p=0:s=x",
-    //     videoFile ? 'input.mp4' : 'input.jpg',
-    //     "-o", "output.txt"
-    //   ])
-    // }
+  };
+
+  // Reused Components
+  function PixBox({ children, labelid, index }: {children: React.ReactElement[], labelid: string, index: number}) {
+    return (
+      <div>
+        <label htmlFor={labelid}>
+          {children}
+        </label>
+        <Input
+          id={labelid}
+          type="number"
+          onChange={(e) => onSetDimensions(e, index)}
+          value={maxDimensions[index]}
+        />
+      </div>
+    )
+  };
+
+  function DlOpt({ children, tar }: {children: React.ReactNode[], tar: BlobUrl|null}) {
+    return (
+      <DropdownMenuItem disabled={!tar} onClick={() => handleDownload([tar])}>
+        {children}
+      </DropdownMenuItem>
+    )
+  };
+
+  function UpOpt({ children, disabled, index, tar, setter, ratio = false }:
+    {children: React.ReactNode, disabled: boolean, index: number, tar: number,
+     setter: React.Dispatch<React.SetStateAction<number>>, ratio?: boolean}) {
+    return (
+      <DropdownMenuCheckboxItem
+        checked={(tar & index) !== 0}
+        disabled={disabled}
+        key={index}
+        onCheckedChange={(checked) => {
+          if (ratio) setter(index)
+          else setter(checked ? tar | index : tar & ~index)
+        }}
+        // Prevent the dropdown menu from closing when the checkbox is clicked
+        onSelect={(e) => e.preventDefault()}
+      >
+        {children}
+      </DropdownMenuCheckboxItem>
+    )
   };
 
   // Handle auto-scrolling logs
@@ -486,27 +538,56 @@ function App() {
     shouldAutoScrollRef.current = isNearBottom;
   };
 
+  useEffect(() => {
+    // revoke both images if raw image updated
+    return () => {
+      if (imageFile) URL.revokeObjectURL(imageFile.url);
+      setImageDimension(null)
+      setconvertedImageUrl(null)
+    };
+  }, [imageFile]);
+
+  useEffect(() => {
+    return () => {
+      if (convertedImageUrl) URL.revokeObjectURL(convertedImageUrl.url);
+    };
+  }, [convertedImageUrl]);
+
+  useEffect(() => {
+    // revoke both videos if raw video updated
+    return () => {
+      if (videoFile) URL.revokeObjectURL(videoFile.url);
+      setVideoDimension(null)
+      setConvertedVideoUrl(null)
+    };
+  }, [videoFile]);
+
+  useEffect(() => {
+    return () => {
+      if (convertedVideoUrl) URL.revokeObjectURL(convertedVideoUrl.url);
+    };
+  }, [convertedImageUrl]);
+
   return (
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
       <Card className="max-w-full md:max-w-[700px] mx-auto md:p-2 my-4">
         <CardHeader>
           <CardTitle className="flex justify-between">
-            Motion photo Parser Tool
+            📸 Motion photo Playground
           <ModeToggle />
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 [&_.lucide]:w-4 [&_.lucide]:h-4">
           <>
             <div
               {...getRootProps()}
               className={`border-2 border-dashed rounded-md p-4 flex flex-col items-center justify-center`}
             >
               <input {...getInputProps()} />
-              <FilePlus className="h-6 w-6 mb-2" />
               <p className="text-sm text-center">
                 {isDragActive
-                  ? "Drop video or motion photo here..."
-                  : "Drag and drop mp4/jpg, or click to select one"}
+                  ? "Auto detect motion photo..."
+                  : "Drag and drop to start, or click to select one"}
               </p>
               <Button
               variant="outline"
@@ -526,6 +607,15 @@ function App() {
                   </>
                 )}
               </Button>
+              <div className="flex flex-wrap justify-center gap-x-1 pt-2 text-xs">
+                <Badge variant="outline">mp4</Badge>
+                <Badge variant="outline">mov</Badge>
+                <Badge variant="outline">ogg</Badge>
+                <Badge variant="outline">webm</Badge>
+                <Badge variant="secondary">jpg</Badge>
+                <Badge variant="secondary">png</Badge>
+                <Badge variant="secondary">...</Badge>
+              </div>
             </div>
 
             <Tabs value={mediaTab} onValueChange={onTabChange} className="w-full">
@@ -537,17 +627,17 @@ function App() {
                 </TabsTrigger>
                 <TabsTrigger value="image" disabled={!imageFile}>
                   <code className="flex items-center gap-1">
-                    <Image size={18} /> Image
+                    <Aperture size={18} /> Image
                   </code>
                 </TabsTrigger>
-                <TabsTrigger value="motion" disabled={!isMotion || !convertedImageUrl}>
+                <TabsTrigger value="motion" disabled={!(videoFile && imageFile)}>
                   <code className="flex items-center gap-1">
                   <LivePhotoIcon /> Live
                   </code>
                 </TabsTrigger>
               </TabsList>
               <div className="mt-1 rounded-md">
-                <TabsContent value="video" forceMount hidden={mediaTab !== "video"}>
+                <TabsContent value="video" forceMount className="data-[state=inactive]:hidden">
                   <video
                     ref={videoRef}
                     onLoadedMetadata={onLoadedMetadata}
@@ -556,7 +646,7 @@ function App() {
                     className="w-full aspect-video rounded-md mt-2"
                   />
                 </TabsContent>
-                <TabsContent value="image" forceMount={true} hidden={mediaTab !== "image"}>
+                <TabsContent value="image" forceMount className="data-[state=inactive]:hidden">
                   <img
                       ref={imgRef}
                       src={imageFile?.url}
@@ -564,45 +654,49 @@ function App() {
                     />
                 </TabsContent>
                 <TabsContent value="motion">
-                  <LivePhoto url={convertedImageUrl?.url} videoUrl={convertedVideoUrl?.url} stamp={captureStamp} />
+                  <LivePhoto
+                    url={convertedImageUrl?.url ?? imageFile?.url}
+                    videoUrl={convertedVideoUrl?.url ?? videoFile?.url}
+                    stamp={captureStamp}
+                  />
                 </TabsContent>
               </div>
             </Tabs>
 
-            <div id="meta_panel" className="grid gap-3 pt-4 m-0 border-t-2 border-dashed has-[div]:mb-4" >
+            <div id="meta_panel" className="grid gap-3 pt-4 m-0 border-t-2 border-dashed has-[div]:mb-4">
               {videoFile && (
                 <>
                   <Badge variant="outline" className="rounded-full pl-1 gap-1.5 font-normal">
-                    <Video size={18} />
+                    <Video />
                     {humanFileSize(videoFile.size)}
-                    <ArrowRight size={18} />
+                    <ArrowRight />
                     {convertedVideoUrl ? humanFileSize(convertedVideoUrl.size) : "??"}
                   </Badge>
                   <Badge variant="outline" className="rounded-full pl-1 gap-1.5 font-normal">
-                    <ImageUpscale size={18} />
+                    <ImageUpscale />
                     {videoDimension ? `${videoDimension.width}x${videoDimension.height}` : "??"}
-                    <ArrowRight size={18} {...(convertedVideoUrl && {color: "#3e9392"})} />
+                    <ArrowRight {...(convertedVideoUrl && {color: "#3e9392"})} />
                     {newVideoDimensions ? `${newVideoDimensions.width}x${newVideoDimensions.height}` : "??"}
                   </Badge>
-                </>)
-              }
+                </>
+              )}
               {imageFile && (
                 <>
                   <Badge variant="outline" className="rounded-full pl-1 gap-1.5 font-normal">
-                    <Image size={18} />
+                    <Aperture />
                     {humanFileSize(imageFile.size)}
-                    <ArrowRight size={18} />
+                    <ArrowRight />
                     {convertedImageUrl ? humanFileSize(convertedImageUrl.size) : "??"}
                   </Badge>
                   <Badge variant="outline" className="rounded-full pl-1 gap-1.5 font-normal">
-                    <ImageUpscale size={18} />
+                    <ImageUpscale />
                     {imageDimension ? `${imageDimension.width}x${imageDimension.height}` : "??"}
-                    <ArrowRight size={18} {...(convertedImageUrl && {color: "#3e9392"})} />
+                    <ArrowRight {...(convertedImageUrl && {color: "#3e9392"})} />
                     {newImageDimensions ? `${newImageDimensions.width}x${newImageDimensions.height}` : "??"}
                   </Badge>
                 </>)
               }
-          </div>
+            </div>
 
             <div className="flex items-center space-x-2">
               <Switch
@@ -641,59 +735,102 @@ function App() {
 
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-6"><ImageUpscale size={18} /></Button>
+                  <Button variant="outline" size="icon" className="h-6"><ImageUpscale /></Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-50 [&_.lucide]:w-4 [&_.lucide]:h-4">
+                  <div className="grid gap-4">
+                    <div className="flex items-center space-x-2">
+                      <div className="flex flex-1">
+                        <h4 className="font-medium leading-none">Scale</h4>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <CircleAlert size={16} />
+                            </TooltipTrigger>
+                            <TooltipContent>Set max pixels, 0 to keep original</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <Infinity
+                        role="button"
+                        onClick={() => setMaxDimensions([0, 0, 0, 0])}
+                      />
+                      <RefreshCcwDot
+                        role="button"
+                        onClick={() => setMaxDimensions(defaultDimension)}
+                      />
+                    </div>
+                    <div className="grid gap-2 [&>div]:grid [&>div]:grid-cols-3 [&>div]:items-center [&>div]:gap-4
+                                    [&_label]:flex [&_label]:gap-2 [&_input]:col-span-2 [&_input]:h-8">
+                      <PixBox labelid="iwidth" index={0}>
+                        <Aperture /><MoveHorizontal />
+                      </PixBox>
+                      <PixBox labelid="iheight" index={1}>
+                        <Aperture /><MoveVertical />
+                      </PixBox>
+                      <PixBox labelid="vwidth" index={2}>
+                        <Video /><MoveHorizontal />
+                      </PixBox>
+                      <PixBox labelid="vheight" index={3}>
+                        <Video /><MoveVertical />
+                      </PixBox>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <Popover onOpenChange={(open: boolean) => {
+                open && videoRef.current && setExtractStamp(videoRef.current.currentTime)
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-6"><Camera /></Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-50">
                   <div className="grid gap-4">
                     <div className="space-y-2">
-                      <h4 className="font-medium leading-none">Dimensions</h4>
-                      <RotateCcw
-                        size={20} 
-                        className="absolute right-2 top-4"
-                        role="button"
-                        onClick={() => setMaxDimensions(defaultDimension)}
-                      />
-                      <p className="text-sm text-muted-foreground">
-                        Set max pixels for the new media.
+                      <h4 className="leading-none font-medium">Snapshot</h4>
+                      <p className="text-muted-foreground text-sm">
+                        Extract image from video at position (s).
                       </p>
                     </div>
-                    <div className="grid gap-2 [&>div]:grid [&>div]:grid-cols-3 [&>div]:items-center [&>div]:gap-4
-                                    [&_label]:flex [&_label]:gap-2 [&_input]:col-span-2 [&_input]:h-8">
-                      <div>
-                        <label htmlFor="iwidth"><Image size={22} /> <MoveHorizontal size={22} /></label>
-                        <Input
-                          id="iwidth"
-                          type="number"
-                          onChange={(e) => onSetDimensions(e, 0)}
-                          value={maxDimensions[0]}
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="iheight"><Image size={22} /> <MoveVertical size={22} /></label>
-                        <Input
-                          id="iheight"
-                          type="number"
-                          onChange={(e) => onSetDimensions(e, 1)}
-                          value={maxDimensions[1]}
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="vwidth"><Video size={22} /> <MoveHorizontal size={22} /></label>
-                        <Input
-                          id="vwidth"
-                          type="number"
-                          onChange={(e) => onSetDimensions(e, 2)}
-                          value={maxDimensions[2]}
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="vheight"><Video size={22} /> <MoveVertical size={22} /></label>
-                        <Input
-                          id="vheight"
-                          type="number"
-                          onChange={(e) => onSetDimensions(e, 3)}
-                          value={maxDimensions[3]}
-                        />
+                    <div className="grid gap-3">
+                      <Input
+                        type="number"
+                        step={0.1}
+                        value={extractStamp}
+                        onChange={(e) => setExtractStamp(e.target.valueAsNumber)}
+                      />
+                      <div className="flex">
+                        <Button
+                          disabled={loading || !isFileSelect || !loaded || isConvert == 0}
+                          onClick={extractjpg}
+                          className="flex-auto rounded-r-none"
+                          size="sm"
+                        >
+                          {loading ? (
+                            <>
+                              <Loader className="h-4 w-4 animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <RotateCw className="h-4 w-4" />
+                              Snapshot
+                            </>
+                          )}
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" className={'rounded-l-none border-l-0 px-2'} disabled={loading || !isFileSelect || !loaded}>
+                              <ChevronDown />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <UpOpt disabled={!videoFile} index={1} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>Raw video</UpOpt>
+                            <UpOpt disabled={!convertedVideoUrl} index={2} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>Converted video</UpOpt>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   </div>
@@ -721,54 +858,56 @@ function App() {
                   )}
                 </Button>
               )}
-              <Button
-                disabled={loading || !isFileSelect || !loaded}
-                onClick={transcode}
-                className="flex-auto"
-                size="sm"
-              >
-                {loading ? (
-                  <>
-                    <Loader className="h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <RotateCw className="h-4 w-4" />
-                    FFmpeg
-                  </>
-                )}
-              </Button>
-              {(videoFile || imageFile) && (
-                <div className="inline-flex items-center flex-1">
+              <div className="inline-flex flex-auto">
+                <Button
+                  disabled={loading || !isFileSelect || !loaded || isConvert == 0}
+                  onClick={transcode}
+                  className="flex-auto rounded-r-none"
+                  size="sm"
+                >
+                  {loading ? (
+                    <>
+                      <Loader className="h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <RotateCw className="h-4 w-4" />
+                      FFmpeg
+                    </>
+                  )}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" className={'rounded-l-none border-l-0 px-2'} disabled={loading || !isFileSelect || !loaded}>
+                      <ChevronDown />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <UpOpt disabled={!imageFile} index={1} tar={isConvert} setter={setIsConvert}>transcode image</UpOpt>
+                    <UpOpt disabled={!videoFile} index={2} tar={isConvert} setter={setIsConvert}>transcode video</UpOpt>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              {isFileSelect && (<DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleDownload([convertedVideoUrl ?? videoFile,
-                                                   convertedImageUrl ?? imageFile])}
-                    className={`flex-auto ${isMotion && "rounded-r-none"}`}
+                    className="flex-auto"
                     disabled={loading}
                   >
                     <Download className="h-4 w-4" />
                     Download
                   </Button>
-                  {isMotion && (<DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className={'rounded-l-none border-l-0 px-2'} disabled={loading}>
-                        <ChevronDown />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => handleDownload([convertedVideoUrl ?? videoFile])}>
-                        <Video size={18} />Video
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDownload([convertedImageUrl ?? imageFile])}>
-                        <Image size={18} />Image
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>)}
-                </div>
-              )}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="dropdown-content-width-full">
+                  {imageFile?.embed && (<DlOpt tar={imageFile}><Aperture />Extracted image</DlOpt>)}
+                  {videoFile?.embed && (<DlOpt tar={videoFile}><Video />Extracted video</DlOpt>)}
+                  <DlOpt tar={convertedImageUrl}><FileImage />Converted image</DlOpt>
+                  <DlOpt tar={convertedVideoUrl}><FileVideo2 />Converted video</DlOpt>
+                </DropdownMenuContent>
+              </DropdownMenu>)}
             </div>
             <div className="w-full flex items-center justify-center gap-3 mt-2">
               <Progress value={progress} className="flex-auto" />
@@ -851,25 +990,40 @@ function App() {
                     {usePost ? "POST" : "PUT"} Method
                   </label>
                 </div>
-
-                <Button
-                  variant="outline"
-                  type="submit"
-                  className="w-full"
-                  disabled={loading || !isFileSelect}
-                >
-                  {loading ? (
-                    <>
-                      <UploadIcon className="mr-1 h-4 w-4 animate-pulse" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <UploadIcon className="mr-1 h-4 w-4" />
-                      Upload
-                    </>
-                  )}
-                </Button>
+                <div className="flex w-full">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="submit"
+                    className="flex-1 rounded-r-none"
+                    disabled={loading || !isFileSelect}
+                  >
+                    {loading ? (
+                      <>
+                        <UploadIcon className="mr-1 h-4 w-4 animate-pulse" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <UploadIcon className="mr-1 h-4 w-4" />
+                        Upload
+                      </>
+                    )}
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className={'rounded-l-none border-l-0 px-2'} disabled={loading || !isFileSelect}>
+                        <ChevronDown />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <UpOpt disabled={!imageFile} index={1} tar={isUpload} setter={setIsUpload}>{imageFile?.embed ? "Embed" : "Raw"} image</UpOpt>
+                      <UpOpt disabled={!videoFile} index={2} tar={isUpload} setter={setIsUpload}>{videoFile?.embed ? "Embed" : "Raw"} video</UpOpt>
+                      <UpOpt disabled={!convertedImageUrl} index={4} tar={isUpload} setter={setIsUpload}>Converted image</UpOpt>
+                      <UpOpt disabled={!convertedVideoUrl} index={8} tar={isUpload} setter={setIsUpload}>Converted video</UpOpt>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </form>
               </AccordionContent>
               </AccordionItem>
