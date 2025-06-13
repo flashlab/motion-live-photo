@@ -376,11 +376,16 @@ function App() {
     setLoading(true);
     setProgress(0);
 
-    const ffmpegArgs = [["-v", "error", "-select_streams", "v", "-show_entries", "stream=width\\,height", "-of", "csv=p=0:s=x",
-          videoFile ? 'input.mp4' : 'input.jpg',
-          "-o", "output.txt"], [
+    const ffmpegArgs = [[
+          "-loglevel",
+          "quiet",
+          "-i",
+          "empty.webm",
+          "empty.mp4"
+        ], [
           "-v",
           "level+info",
+          "-y",
           "-i",
           "input.jpg",
           "-vf",
@@ -389,6 +394,7 @@ function App() {
         ], [
           "-v",
           "level+info",
+          "-y",
           "-i",
           "input.mp4",
           ...["-vf", `scale=min(${maxDimensions[2]}\\,iw):min(${maxDimensions[3]}\\,ih):force_original_aspect_ratio=decrease`],
@@ -398,11 +404,14 @@ function App() {
         ], [
           "-v",
           "level+info",
+          "-y",
           "-i",
           "input.mp4",
           "-ss",
-          `${Math.floor(extractStamp*1000)}ms`,
+          `${extractStamp.toFixed(2)}`,
           "-frames:v",
+          "1",
+          "-update",
           "1",
           "extract.jpg"
         ]]
@@ -431,10 +440,9 @@ function App() {
         setconvertedImageUrl({url: URL.createObjectURL(imageBlob), size: imageBlob.size, name: imageFile!.name+"_new", ext: "jpg"});
       } catch (e) {
         toast({
-          description: `⚠️ Error transcoding image: ${e}, try again later`,
+          description: `⚠️ Error transcoding image: ${e}, try to reload core`,
         });
         await load(isCoreMT);
-        setconvertedImageUrl(null);
         setLoading(true);
       }
     }
@@ -444,6 +452,8 @@ function App() {
         await fetchFile(film.obj.url),
       );
       try {
+        // pre excute with meaningless command to solve mp4-to-jpg error.
+        await ffmpeg.exec(ffmpegArgs[0]);
         await ffmpeg.exec(ffmpegArgs[film.arg]);
         if (film.arg === 3) {
           const data = await ffmpeg.readFile("extract.jpg");
@@ -461,10 +471,9 @@ function App() {
         }
       } catch (e) {
         toast({
-          description: `⚠️ Error transcoding video: ${e}, try again later`,
+          description: `⚠️ Error transcoding video: ${e}, try to reload core`,
         });
         setProgress(0);
-        setConvertedVideoUrl(null);
       }
     }
     ffmpeg.off("log", logListener);
@@ -607,7 +616,7 @@ function App() {
                   </>
                 )}
               </Button>
-              <div className="flex flex-wrap justify-center gap-x-1 pt-2 text-xs">
+              <div className="flex flex-wrap justify-center gap-x-1 *:mt-2 text-xs text-black/50">
                 <Badge variant="outline">mp4</Badge>
                 <Badge variant="outline">mov</Badge>
                 <Badge variant="outline">ogg</Badge>
@@ -704,7 +713,7 @@ function App() {
                 onCheckedChange={(checked) => {
                   setIsCoreMT(checked);
                   setLoaded(false);
-                  load(checked);
+                  // load(checked);
                 }}
                 disabled={loading || typeof SharedArrayBuffer !== "function"}
               />
@@ -712,7 +721,7 @@ function App() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <label className="text-xs inline mr-3">
-                          Multithreading
+                          Multithread
                         </label>
                       </TooltipTrigger>
                       <TooltipContent>
