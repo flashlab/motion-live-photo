@@ -2,7 +2,8 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 //import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
-import eslintPlugin from 'vite-plugin-eslint'
+import eslintPlugin from 'vite-plugin-eslint';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -17,9 +18,9 @@ export default defineConfig({
       include: ['./src//*.js', './src//*.jsx'],
       exclude: [],
     }),
-    //visualizer({
-    //  filename: "dist/stats.html",
-    //}),
+    visualizer({
+     open: true, // Opens the report in the browser
+    }),
   ],
   optimizeDeps: {
     exclude: [

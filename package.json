@@ -58,7 +58,7 @@
     "react-hook-form": "^7.55.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.1",
-    "rollup-plugin-visualizer": "^5.14.0",
+    "rollup-plugin-visualizer": "^6.0.3",
     "sonner": "^2.0.2",
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
@@ -83,6 +83,7 @@
     "tailwindcss": "^4.0.17",
     "typescript": "^5.8.2",
     "vite": "^6.2.3",
-    "vite-plugin-eslint": "^1.8.1"
+    "vite-plugin-eslint": "^1.8.1",
+    "webpack-bundle-analyzer": "^4.10.2"
   }
 }

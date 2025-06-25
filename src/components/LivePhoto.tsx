@@ -2,6 +2,14 @@
 
 import { useEffect, useRef } from 'react'
 import { cn } from '../lib/utils'
+import { Loader } from 'lucide-react';
+
+type LivePhotosKit = typeof import('livephotoskit')
+declare global {
+  interface Window {
+    LivePhotosKit: LivePhotosKit
+  }
+}
 
 export function LivePhoto({ url, videoUrl, stamp, className }: { url?: string; videoUrl?: string; stamp?: number; className?: string }) {
   const livePhotoRef = useRef<HTMLDivElement>(null)
@@ -24,9 +32,11 @@ export function LivePhoto({ url, videoUrl, stamp, className }: { url?: string; v
   }, [livePhotoRef, url, videoUrl])
 
   return (
-    <div ref={livePhotoRef} className={
-      cn(className, "w-full object-contain h-[50vh]")
-    } />
+      <div ref={livePhotoRef} className={
+        cn(className, "w-full object-contain h-[50vh]")
+      } >
+        {!window.LivePhotosKit && (<Loader className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin" />)}
+      </div>
   )
 }
 

@@ -103,6 +103,8 @@ function App() {
   const logContainerRef = useRef<HTMLDivElement | null>(null);
   const shouldAutoScrollRef = useRef(true);
 
+  const videoTypes = ["mp4", "mov", "ogg", "webm"];
+  const imageTypes = ["jpg", "png"];
   const isFileSelect = useMemo(() => !!(videoFile || imageFile), [videoFile, imageFile]);
   const [isConvert, setIsConvert] = useState(3);
   const [isUpload, setIsUpload] = useState(12);
@@ -112,7 +114,7 @@ function App() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (files) => files[0] && handleFileSelect(files[0]),
     accept: {
-      "video/*": [".mp4", ".mov", ".ogg", ".webm"],
+      "video/*": videoTypes.map(v => '.'+v),
       "image/*": [],
     },
     multiple: false,
@@ -135,8 +137,8 @@ function App() {
         setLogMessages((prev) => [...prev, e.data.msg]);
         break;
       case "err":
-        const {name} = parseFileName(e.data.name);
-        setImageFile({url: URL.createObjectURL(e.data.rawfile), name: name, size: e.data.rawfile.size, ext: "jpg"});
+        const {name, ext} = parseFileName(e.data.rawfile.name);
+        setImageFile({url: URL.createObjectURL(e.data.rawfile), name: name, size: e.data.rawfile.size, ext: ext});
         setMediaTab("image");
         setLoading(false);
         toast({
@@ -254,7 +256,9 @@ function App() {
   const handleFileSelect = (file: File): void => {
     // get file name
     const {name, ext} = parseFileName(file.name);
-    if (file.type.startsWith("video/")) {
+    const mime = file.type;
+    // console.log(mime);
+    if (mime.startsWith("video/")) {
       const newfile = URL.createObjectURL(file);
       if (videoRef.current) videoRef.current.src = newfile;
       setVideoFile({url: newfile, size: file.size, name: name, ext: ext});
@@ -263,7 +267,7 @@ function App() {
       toast({
         description: "🚀 Video file loaded. ",
       });
-    } else {
+    } else if (mime.startsWith("image/")) {
       setLoading(true);
       fileWorker.postMessage(file);
     }
@@ -277,6 +281,7 @@ function App() {
       (o, i): o is BlobUrl => o !== null && (isUpload & (2**i)) !== 0
     );
     for (const media of uploadFile) {
+      // TODO: Customize uploaded file name.
       const fullName = `${media.name}.${media.ext}`;
       const realEndPoint = endPoint.replace("{filename}", fullName);
       const blob = await fetch(media.url).then(r => r.blob());
@@ -320,6 +325,7 @@ function App() {
   };
 
   const load = async (mt: boolean = false) => {
+
     setLoading(true);
     const baseLib = FFMPEG_URL[mt ? "core_mt" : "core"];
     const setUrlProgress = ({ total: _total, received: _received }: {
@@ -373,49 +379,46 @@ function App() {
 
   const ffexec = async (img: { obj: BlobUrl | null; arg: number; }, film: { obj: BlobUrl | null; arg: number; }) => {
     if (!img.obj && !film.obj) return;
-    setLoading(true);
+
+    const ffmpeg = ffmpegRef.current;
     setProgress(0);
+    // Abort worker.
+    if (loading) {
+      setLoading(false);
+      return ffmpeg.terminate()
+    };
+    setLoading(true);
+
+    const argsHead = [
+      "-v",
+      "level+info",
+      "-y",
+      "-i",
+    ]
 
     const ffmpegArgs = [[
           "-loglevel",
           "quiet",
           "-i",
           "empty.webm",
-          "empty.mp4"
+          "empty.mp4",
         ], [
-          "-v",
-          "level+info",
-          "-y",
-          "-i",
-          "input.jpg",
           "-vf",
           `scale=min(${maxDimensions[0]}\\,iw):min(${maxDimensions[1]}\\,ih):force_original_aspect_ratio=decrease`,
-          "output.jpg",
         ], [
-          "-v",
-          "level+info",
-          "-y",
-          "-i",
-          "input.mp4",
           ...["-vf", `scale=min(${maxDimensions[2]}\\,iw):min(${maxDimensions[3]}\\,ih):force_original_aspect_ratio=decrease`],
           ...["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"],
           ...keepAudio ? ["-acodec", "copy"] : ["-an"],
           "output.mov",
         ], [
-          "-v",
-          "level+info",
-          "-y",
-          "-i",
-          "input.mp4",
           "-ss",
           `${extractStamp.toFixed(2)}`,
           "-frames:v",
           "1",
           "-update",
           "1",
-          "extract.jpg"
+          "extract.jpg",
         ]]
-    const ffmpeg = ffmpegRef.current;
 
     // Listen to progress event instead of log.
     // progress event is experimental, be careful when using it
@@ -430,14 +433,15 @@ function App() {
     ffmpeg.on("log", logListener);
     if (img.obj) {
       await ffmpeg.writeFile(
-        "input.jpg",
+        `input.${img.obj.ext}`,
         await fetchFile(img.obj.url),
       );
       try {
-        await ffmpeg.exec(ffmpegArgs[img.arg]);
-        const data = await ffmpeg.readFile("output.jpg");
+        await ffmpeg.exec(argsHead.concat([`input.${img.obj.ext}`], ffmpegArgs[img.arg], [`output.${img.obj.ext}`]));
+        const data = await ffmpeg.readFile(`output.${img.obj.ext}`);
+        // TODO: determine image MIME.
         const imageBlob = new Blob([data], { type: "image/jpeg" });
-        setconvertedImageUrl({url: URL.createObjectURL(imageBlob), size: imageBlob.size, name: imageFile!.name+"_new", ext: "jpg"});
+        setconvertedImageUrl({url: URL.createObjectURL(imageBlob), size: imageBlob.size, name: imageFile!.name+"_new", ext: img.obj.ext});
       } catch (e) {
         toast({
           description: `⚠️ Error transcoding image: ${e}, try to reload core`,
@@ -448,17 +452,19 @@ function App() {
     }
     if (film.obj) {
       await ffmpeg.writeFile(
-        "input.mp4",
+        `input.${film.obj.ext}`,
         await fetchFile(film.obj.url),
       );
       try {
         // pre excute with meaningless command to solve mp4-to-jpg error.
         await ffmpeg.exec(ffmpegArgs[0]);
-        await ffmpeg.exec(ffmpegArgs[film.arg]);
+        // fix video output format to mov(video) and jpg(image).
+        await ffmpeg.exec(argsHead.concat([`input.${film.obj.ext}`], ffmpegArgs[film.arg]));
         if (film.arg === 3) {
           const data = await ffmpeg.readFile("extract.jpg");
           const blob = new Blob([data], { type: "image/jpeg" });
           const newfile = URL.createObjectURL(blob);
+          // force extract jpg frame.
           setImageFile({url: newfile, size: blob.size, name: film.obj.name, ext: "jpg"});
           setCaptureStamp(extractStamp);
         } else {
@@ -466,7 +472,7 @@ function App() {
           const blob = new Blob([data], { type: "video/quicktime" });
           const newfile = URL.createObjectURL(blob);
           setConvertedVideoUrl({url: newfile, size: blob.size, name: film.obj.name, ext: "mov"});
-          // use converted video if raw video broken
+          // use converted video if raw video broken.
           if (videoRef.current && videoRef.current.readyState < HTMLMediaElement.HAVE_METADATA) videoRef.current.src = newfile;
         }
       } catch (e) {
@@ -617,13 +623,26 @@ function App() {
                 )}
               </Button>
               <div className="flex flex-wrap justify-center gap-x-1 *:mt-2 text-xs text-black/50">
-                <Badge variant="outline">mp4</Badge>
-                <Badge variant="outline">mov</Badge>
-                <Badge variant="outline">ogg</Badge>
-                <Badge variant="outline">webm</Badge>
-                <Badge variant="secondary">jpg</Badge>
-                <Badge variant="secondary">png</Badge>
-                <Badge variant="secondary">...</Badge>
+              {/* TODO: highlight selected file type. */}
+                {videoTypes.map((type) => (
+                  <Badge
+                    key={type}
+                    variant={type === videoFile?.ext ? "default" : "outline"}
+                  >
+                    {type}
+                  </Badge>
+                ))}
+                {imageTypes.map((type) => (
+                  <Badge
+                    key={type}
+                    variant={type === imageFile?.ext ? "default" : "secondary"}
+                  >
+                    {type}
+                  </Badge>
+                ))}
+                <Badge variant={imageFile && !imageTypes.includes(imageFile.ext) ? "default" : "secondary"}>
+                  {(imageFile && !imageTypes.includes(imageFile.ext)) ? imageFile.ext : '...'}
+                </Badge>
               </div>
             </div>
 
@@ -812,15 +831,15 @@ function App() {
                       />
                       <div className="flex">
                         <Button
-                          disabled={loading || !isFileSelect || !loaded || isConvert == 0}
+                          disabled={!isFileSelect || !loaded || isConvert == 0}
                           onClick={extractjpg}
                           className="flex-auto rounded-r-none"
                           size="sm"
                         >
-                          {loading ? (
+                          {loaded && loading ? (
                             <>
                               <Loader className="h-4 w-4 animate-spin" />
-                              Processing...
+                              Abort!
                             </>
                           ) : (
                             <>
@@ -869,15 +888,15 @@ function App() {
               )}
               <div className="inline-flex flex-auto">
                 <Button
-                  disabled={loading || !isFileSelect || !loaded || isConvert == 0}
+                  disabled={!isFileSelect || !loaded || isConvert == 0}
                   onClick={transcode}
                   className="flex-auto rounded-r-none"
                   size="sm"
                 >
-                  {loading ? (
+                  {loaded && loading ? (
                     <>
                       <Loader className="h-4 w-4 animate-spin" />
-                      Processing...
+                      Abort!
                     </>
                   ) : (
                     <>
@@ -920,7 +939,7 @@ function App() {
             </div>
             <div className="w-full flex items-center justify-center gap-3 mt-2">
               <Progress value={progress} className="flex-auto" />
-              <span className="text-xs w-9">{progress}%</span>
+              <span className="text-xs text-center w-9">{progress}%</span>
             </div>
 
             <Accordion type="single" collapsible className="mt-2">
@@ -1010,6 +1029,7 @@ function App() {
                     {loading ? (
                       <>
                         <UploadIcon className="mr-1 h-4 w-4 animate-pulse" />
+                        {/* TODO: Manually abort uploading. */}
                         Processing...
                       </>
                     ) : (
