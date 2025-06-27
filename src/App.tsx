@@ -9,7 +9,7 @@ import DropdownInput from "@/components/droplist-input";
 import { Button } from "@/components/ui/button";
 import { Input } from '@/components/ui/input';
 import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuContent } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -21,6 +21,7 @@ import { FFMPEG_URL } from "@/lib/const";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { LivePhoto, LivePhotoIcon } from '@/components/LivePhoto';
+import { PixBox, InputBtn, UpOpt } from '@/components/widget';
 import { resizeDimensions, humanFileSize, parseFileName } from '@/lib/utils';
 
 interface MediaDimensions {
@@ -34,6 +35,14 @@ interface BlobUrl {
   ext: string;
   name: string;
   embed?: boolean;
+}
+
+interface SvrConfig {
+  url: string;
+  token: string;
+  post: boolean;
+  key: string;
+  name: string;
 }
 
 import {
@@ -58,6 +67,9 @@ import {
   Infinity,
   RefreshCcwDot,
   Camera,
+  Clapperboard,
+  FlagTriangleLeft,
+  FlagTriangleRight,
 } from "lucide-react";
 
 const fileWorker = new Worker(new URL('./lib/extractmotion.ts', import.meta.url), {type: "module"});
@@ -78,6 +90,8 @@ function App() {
   const [convertedImageUrl, setconvertedImageUrl] = useState<BlobUrl | null>(null);
   const [captureStamp, setCaptureStamp] = useState<number>(-1);  //seconds
   const [extractStamp, setExtractStamp] = useState<number>(0);
+  const [beginStamp, setBeginStamp] = useState<number>(NaN);
+  const [stopStamp, setStopStamp] = useState<number>(NaN);
 
   const defaultDimension = [1008, 1344, 720, 960];
   const [maxDimensions, setMaxDimensions] = useState<number[]>(loadStorageJson("defaultDimension") ?? defaultDimension);
@@ -90,11 +104,14 @@ function App() {
     return videoDimension ? resizeDimensions(videoDimension.width, videoDimension.height, maxDimensions[2], maxDimensions[3]) : null;
   }, [videoDimension, maxDimensions]);
 
-  const [serverConfig, setServerConfig] = useState<{url: string, token: string}[]>(loadStorageJson('serverConfig') ?? []);
+  const [serverConfig, setServerConfig] = useState<SvrConfig[]>(loadStorageJson('serverConfig') ?? []);
   const [endPoint, setEndPoint] = useState<string>(serverConfig[0]?.url ?? "");
+  const [endPointKey, setEndPointKey] = useState<string>(serverConfig[0]?.key ?? "");
   const [endPointToken, setEndPointToken] = useState<string>(serverConfig[0]?.token ?? "");
-  const [usePost, setUsePost] = useState(localStorage.getItem('usePost') === "true" ? true : false);
+  const [postFieldName, setPostFieldName] = useState<string>(serverConfig[0]?.name || "file");
+  const [usePost, setUsePost] = useState<boolean>(serverConfig[0]?.post ?? false);
   const [keepAudio, setKeepAudio] = useState(localStorage.getItem('keepAudio') === "true" ? true : false);
+  const [isCoreMT, setIsCoreMT] = useState(localStorage.getItem('isCoreMT') === "true" ? true : false);
 
 
   const ffmpegRef = useRef(new FFmpeg());
@@ -109,7 +126,6 @@ function App() {
   const [isConvert, setIsConvert] = useState(3);
   const [isUpload, setIsUpload] = useState(12);
   const [isExtractRaw, setisExtractRaw] = useState(1);
-  const [isCoreMT, setIsCoreMT] = useState(false);
   const { toast } = useToast();
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (files) => files[0] && handleFileSelect(files[0]),
@@ -210,7 +226,7 @@ function App() {
     e.stopPropagation();
     const configs = serverConfig;
     if (!!endPoint) {
-      const newConfig = {url: endPoint, token: endPointToken};
+      const newConfig = {url: endPoint, token: endPointToken, key: endPointKey, name: postFieldName, post: usePost};
       const matchIndex = configs.findIndex(o => o.url === endPoint);
       if (matchIndex > -1) configs.splice(matchIndex, 1);
       configs.unshift(newConfig);
@@ -218,9 +234,6 @@ function App() {
     }
     
     localStorage.setItem('serverConfig', JSON.stringify(configs));
-    localStorage.setItem('defaultDimension', JSON.stringify(maxDimensions));
-    localStorage.setItem('usePost', usePost ? "true" : "false");
-    localStorage.setItem('keepAudio', keepAudio ? "true" : "false");
     return Promise.resolve();
   }
 
@@ -275,18 +288,18 @@ function App() {
 
   const handleUpload = async () => {
     let uploadCount = 0;
-    setLoading(true);
     setProgress(0);
     const uploadFile: (BlobUrl)[] = [imageFile, videoFile, convertedImageUrl, convertedVideoUrl].filter(
       (o, i): o is BlobUrl => o !== null && (isUpload & (2**i)) !== 0
     );
     for (const media of uploadFile) {
+      setLoading(true);
       // TODO: Customize uploaded file name.
       const fullName = `${media.name}.${media.ext}`;
       const realEndPoint = endPoint.replace("{filename}", fullName);
       const blob = await fetch(media.url).then(r => r.blob());
       const formData = new FormData();
-      formData.append('file', blob, fullName);
+      formData.append(postFieldName, blob, fullName);
       const xhr = new XMLHttpRequest();
       const uploadPromise = new Promise<void>((resolve, reject) => {
         xhr.upload.addEventListener('progress', (e) => {
@@ -305,7 +318,7 @@ function App() {
         };
       });
       xhr.open(usePost ? 'POST' : 'PUT', `${realEndPoint}`, true);
-      if (endPointToken) xhr.setRequestHeader('Authorization', endPointToken);
+      if (endPointKey && endPointToken) xhr.setRequestHeader(endPointKey, endPointToken);
       xhr.send(usePost ? formData : blob);
       uploadPromise
         .then(() => {
@@ -369,12 +382,20 @@ function App() {
   };
 
   const transcode = async () => {
+    localStorage.setItem('defaultDimension', JSON.stringify(maxDimensions));
+    localStorage.setItem('keepAudio', keepAudio ? "true" : "false");
+    localStorage.setItem('isCoreMT', isCoreMT ? "true" : "false");
     ffexec({obj: (imageFile && (isConvert & 1) !== 0) ? imageFile : null, arg: 1},
            {obj: (videoFile && (isConvert & 2) !== 0) ? videoFile : null, arg: 2});
   };
   
   const extractjpg = async () => {
-    ffexec({obj: null, arg: 0}, {obj: isExtractRaw == 2 ? convertedVideoUrl : videoFile, arg: 3})
+    if (isExtractRaw) {
+      setCaptureStamp(extractStamp);
+      toast({
+      description: `🚀 Live photo stamp changed.`,
+    });
+    } else ffexec({obj: null, arg: 0}, {obj: isExtractRaw === 2 ? convertedVideoUrl : videoFile, arg: 3})
   };
 
   const ffexec = async (img: { obj: BlobUrl | null; arg: number; }, film: { obj: BlobUrl | null; arg: number; }) => {
@@ -389,13 +410,13 @@ function App() {
     };
     setLoading(true);
 
+    const useCut = (beginStamp > 0 && stopStamp > beginStamp && beginStamp < (videoRef.current?.duration ?? -1))
+                   ? [] : undefined;
     const argsHead = [
       "-v",
       "level+info",
       "-y",
-      "-i",
-    ]
-
+    ];
     const ffmpegArgs = [[
           "-loglevel",
           "quiet",
@@ -403,16 +424,24 @@ function App() {
           "empty.webm",
           "empty.mp4",
         ], [
+          "-i",
+          `input.${img?.obj?.ext}`,
           "-vf",
           `scale=min(${maxDimensions[0]}\\,iw):min(${maxDimensions[1]}\\,ih):force_original_aspect_ratio=decrease`,
+          `output.${img?.obj?.ext}`,
         ], [
+          ...useCut ?? ["-ss", beginStamp.toFixed(3), "-t", (stopStamp - beginStamp).toFixed(3)],
+          "-i",
+          `input.${film?.obj?.ext}`,
           ...["-vf", `scale=min(${maxDimensions[2]}\\,iw):min(${maxDimensions[3]}\\,ih):force_original_aspect_ratio=decrease`],
           ...["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"],
           ...keepAudio ? ["-acodec", "copy"] : ["-an"],
           "output.mov",
         ], [
           "-ss",
-          `${extractStamp.toFixed(2)}`,
+          extractStamp.toFixed(3),
+          "-i",
+          `input.${film?.obj?.ext}`,
           "-frames:v",
           "1",
           "-update",
@@ -437,7 +466,7 @@ function App() {
         await fetchFile(img.obj.url),
       );
       try {
-        await ffmpeg.exec(argsHead.concat([`input.${img.obj.ext}`], ffmpegArgs[img.arg], [`output.${img.obj.ext}`]));
+        await ffmpeg.exec(argsHead.concat(ffmpegArgs[img.arg]));
         const data = await ffmpeg.readFile(`output.${img.obj.ext}`);
         // TODO: determine image MIME.
         const imageBlob = new Blob([data], { type: "image/jpeg" });
@@ -456,18 +485,17 @@ function App() {
         await fetchFile(film.obj.url),
       );
       try {
-        // pre excute with meaningless command to solve mp4-to-jpg error.
-        await ffmpeg.exec(ffmpegArgs[0]);
-        // fix video output format to mov(video) and jpg(image).
-        await ffmpeg.exec(argsHead.concat([`input.${film.obj.ext}`], ffmpegArgs[film.arg]));
         if (film.arg === 3) {
-          const data = await ffmpeg.readFile("extract.jpg");
+          // pre excute with meaningless command to solve mp4-to-jpg error.
+          await ffmpeg.exec(ffmpegArgs[0]);
+          await ffmpeg.exec(argsHead.concat(ffmpegArgs[3]));
+                    const data = await ffmpeg.readFile("extract.jpg");
           const blob = new Blob([data], { type: "image/jpeg" });
-          const newfile = URL.createObjectURL(blob);
-          // force extract jpg frame.
-          setImageFile({url: newfile, size: blob.size, name: film.obj.name, ext: "jpg"});
+          // force extract jpg filetype.
+          setImageFile({url: URL.createObjectURL(blob), size: blob.size, name: film.obj.name, ext: "jpg"});
           setCaptureStamp(extractStamp);
         } else {
+          await ffmpeg.exec(argsHead.concat(ffmpegArgs[film.arg]));
           const data = await ffmpeg.readFile("output.mov");
           const blob = new Blob([data], { type: "video/quicktime" });
           const newfile = URL.createObjectURL(blob);
@@ -488,51 +516,6 @@ function App() {
     toast({
       description: `🚀 Finish transcoding，try clicking on live photo tab.`,
     });
-  };
-
-  // Reused Components
-  function PixBox({ children, labelid, index }: {children: React.ReactElement[], labelid: string, index: number}) {
-    return (
-      <div>
-        <label htmlFor={labelid}>
-          {children}
-        </label>
-        <Input
-          id={labelid}
-          type="number"
-          onChange={(e) => onSetDimensions(e, index)}
-          value={maxDimensions[index]}
-        />
-      </div>
-    )
-  };
-
-  function DlOpt({ children, tar }: {children: React.ReactNode[], tar: BlobUrl|null}) {
-    return (
-      <DropdownMenuItem disabled={!tar} onClick={() => handleDownload([tar])}>
-        {children}
-      </DropdownMenuItem>
-    )
-  };
-
-  function UpOpt({ children, disabled, index, tar, setter, ratio = false }:
-    {children: React.ReactNode, disabled: boolean, index: number, tar: number,
-     setter: React.Dispatch<React.SetStateAction<number>>, ratio?: boolean}) {
-    return (
-      <DropdownMenuCheckboxItem
-        checked={(tar & index) !== 0}
-        disabled={disabled}
-        key={index}
-        onCheckedChange={(checked) => {
-          if (ratio) setter(index)
-          else setter(checked ? tar | index : tar & ~index)
-        }}
-        // Prevent the dropdown menu from closing when the checkbox is clicked
-        onSelect={(e) => e.preventDefault()}
-      >
-        {children}
-      </DropdownMenuCheckboxItem>
-    )
   };
 
   // Handle auto-scrolling logs
@@ -623,7 +606,6 @@ function App() {
                 )}
               </Button>
               <div className="flex flex-wrap justify-center gap-x-1 *:mt-2 text-xs text-black/50">
-              {/* TODO: highlight selected file type. */}
                 {videoTypes.map((type) => (
                   <Badge
                     key={type}
@@ -726,144 +708,171 @@ function App() {
               }
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Switch
-                checked={isCoreMT}
-                onCheckedChange={(checked) => {
-                  setIsCoreMT(checked);
-                  setLoaded(false);
-                  // load(checked);
-                }}
-                disabled={loading || typeof SharedArrayBuffer !== "function"}
-              />
-              <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <label className="text-xs inline mr-3">
-                          Multithread
+            <div className="flex justify-between *:flex *:items-end *:space-x-2">
+              <div>
+                <Switch
+                  checked={isCoreMT}
+                  onCheckedChange={(checked) => {
+                    setIsCoreMT(checked);
+                    setLoaded(false);
+                    // load(checked);
+                  }}
+                  disabled={loading || typeof SharedArrayBuffer !== "function"}
+                />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <label className="text-xs inline-flex">
+                        Multithread <CircleAlert className="ml-1" />
+                      </label>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Multi-threaded core is faster, but unstable and not supported by all browsers.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-6"><Clapperboard /></Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-50">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <h4 className="font-medium leading-none flex gap-1 flex-1 mb-4">Video setting <CircleAlert size={16} /></h4>
+                        </TooltipTrigger>
+                        <TooltipContent>Set max pixels, 0 to keep original</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <div className="grid gap-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs">
+                          Keep audio:
                         </label>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Multi-threaded core is faster, but unstable and not supported by all browsers.
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                        <Switch
+                          checked={keepAudio}
+                          onCheckedChange={(checked) => {
+                            setKeepAudio(checked);
+                            localStorage.setItem('keepAudio', checked ? "true" : "false");
+                          }}
+                          disabled={loading}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <label className="text-xs">
+                          Cut range:
+                        </label>
+                        <InputBtn icon={FlagTriangleLeft} tar={beginStamp} setter={setBeginStamp} videoRef={videoRef} />
+                        <InputBtn icon={FlagTriangleRight} tar={stopStamp} setter={setStopStamp} videoRef={videoRef} />
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
 
-              <Switch
-                checked={keepAudio}
-                onCheckedChange={(checked) => {
-                  setKeepAudio(checked);
-                  localStorage.setItem('keepAudio', checked ? "true" : "false");
-                }}
-                disabled={loading}
-              />
-              <label className="text-xs inline">
-                Keep Audio
-              </label>
-
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-6"><ImageUpscale /></Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-50 [&_.lucide]:w-4 [&_.lucide]:h-4">
-                  <div className="grid gap-4">
-                    <div className="flex items-center space-x-2">
-                      <div className="flex flex-1">
-                        <h4 className="font-medium leading-none">Scale</h4>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-6"><ImageUpscale /></Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-50 [&_.lucide]:w-4 [&_.lucide]:h-4">
+                    <div className="grid gap-4">
+                      <div className="flex items-center space-x-2">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <CircleAlert size={16} />
+                              <h4 className="font-medium leading-none flex gap-1 flex-1">Scale <CircleAlert size={16} /></h4>
                             </TooltipTrigger>
                             <TooltipContent>Set max pixels, 0 to keep original</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                        <Infinity
+                          role="button"
+                          onClick={() => setMaxDimensions([0, 0, 0, 0])}
+                        />
+                        <RefreshCcwDot
+                          role="button"
+                          onClick={() => setMaxDimensions(defaultDimension)}
+                        />
                       </div>
-                      <Infinity
-                        role="button"
-                        onClick={() => setMaxDimensions([0, 0, 0, 0])}
-                      />
-                      <RefreshCcwDot
-                        role="button"
-                        onClick={() => setMaxDimensions(defaultDimension)}
-                      />
+                      <div className="grid gap-2 [&>div]:grid [&>div]:grid-cols-3 [&>div]:items-center [&>div]:gap-4
+                                      [&_label]:flex [&_label]:gap-2 [&_input]:col-span-2 [&_input]:h-8">
+                        <PixBox labelid="iwidth" value={maxDimensions[0]} onChange={e => onSetDimensions(e, 0)}>
+                          <Aperture /><MoveHorizontal />
+                        </PixBox>
+                        <PixBox labelid="iheight" value={maxDimensions[1]} onChange={e => onSetDimensions(e, 1)}>
+                          <Aperture /><MoveVertical />
+                        </PixBox>
+                        <PixBox labelid="vwidth" value={maxDimensions[2]} onChange={e => onSetDimensions(e, 2)}>
+                          <Video /><MoveHorizontal />
+                        </PixBox>
+                        <PixBox labelid="vheight" value={maxDimensions[3]} onChange={e => onSetDimensions(e, 3)}>
+                          <Video /><MoveVertical />
+                        </PixBox>
+                      </div>
                     </div>
-                    <div className="grid gap-2 [&>div]:grid [&>div]:grid-cols-3 [&>div]:items-center [&>div]:gap-4
-                                    [&_label]:flex [&_label]:gap-2 [&_input]:col-span-2 [&_input]:h-8">
-                      <PixBox labelid="iwidth" index={0}>
-                        <Aperture /><MoveHorizontal />
-                      </PixBox>
-                      <PixBox labelid="iheight" index={1}>
-                        <Aperture /><MoveVertical />
-                      </PixBox>
-                      <PixBox labelid="vwidth" index={2}>
-                        <Video /><MoveHorizontal />
-                      </PixBox>
-                      <PixBox labelid="vheight" index={3}>
-                        <Video /><MoveVertical />
-                      </PixBox>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
+                  </PopoverContent>
+                </Popover>
 
-              <Popover onOpenChange={(open: boolean) => {
-                open && videoRef.current && setExtractStamp(videoRef.current.currentTime)
-                }}
-              >
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-6"><Camera /></Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-50">
-                  <div className="grid gap-4">
-                    <div className="space-y-2">
-                      <h4 className="leading-none font-medium">Snapshot</h4>
-                      <p className="text-muted-foreground text-sm">
-                        Extract image from video at position (s).
-                      </p>
-                    </div>
-                    <div className="grid gap-3">
-                      <Input
-                        type="number"
-                        step={0.1}
-                        value={extractStamp}
-                        onChange={(e) => setExtractStamp(e.target.valueAsNumber)}
-                      />
-                      <div className="flex">
-                        <Button
-                          disabled={!isFileSelect || !loaded || isConvert == 0}
-                          onClick={extractjpg}
-                          className="flex-auto rounded-r-none"
-                          size="sm"
-                        >
-                          {loaded && loading ? (
-                            <>
-                              <Loader className="h-4 w-4 animate-spin" />
-                              Abort!
-                            </>
-                          ) : (
-                            <>
-                              <RotateCw className="h-4 w-4" />
-                              Snapshot
-                            </>
-                          )}
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="sm" className={'rounded-l-none border-l-0 px-2'} disabled={loading || !isFileSelect || !loaded}>
-                              <ChevronDown />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <UpOpt disabled={!videoFile} index={1} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>Raw video</UpOpt>
-                            <UpOpt disabled={!convertedVideoUrl} index={2} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>Converted video</UpOpt>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                <Popover onOpenChange={(open: boolean) => {
+                  open && videoRef.current && setExtractStamp(videoRef.current.currentTime)
+                  }}
+                >
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-6"><Camera /></Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-50">
+                    <div className="grid gap-4">
+                      <div className="space-y-2">
+                        <h4 className="leading-none font-medium">Snapshot</h4>
+                        <p className="text-muted-foreground text-sm">
+                          Extract image from video at position (s).
+                        </p>
+                      </div>
+                      <div className="grid gap-3">
+                        <Input
+                          type="number"
+                          step={0.1}
+                          value={extractStamp}
+                          onChange={(e) => setExtractStamp(e.target.valueAsNumber)}
+                        />
+                        <div className="flex">
+                          <Button
+                            disabled={!isFileSelect || (isExtractRaw !== 4 && (!loaded || isConvert == 0))}
+                            onClick={extractjpg}
+                            className="flex-auto rounded-r-none"
+                            size="sm"
+                          >
+                            {loaded && loading ? (
+                              <>
+                                <Loader className="h-4 w-4 animate-spin" />
+                                Abort!
+                              </>
+                            ) : (
+                              <>
+                                <RotateCw className="h-4 w-4" />
+                                Snapshot
+                              </>
+                            )}
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" className={'rounded-l-none border-l-0 px-2'} disabled={loading || !isFileSelect}>
+                                <ChevronDown />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <UpOpt disabled={!videoFile} index={1} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>Raw video</UpOpt>
+                              <UpOpt disabled={!convertedVideoUrl} index={2} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>Converted video</UpOpt>
+                              <UpOpt index={4} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>Only timestamp</UpOpt>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
             <div className="flex flex-col md:flex-row md:items-center gap-2 mt-2">
               {!loaded && (
@@ -930,10 +939,26 @@ function App() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="dropdown-content-width-full">
-                  {imageFile?.embed && (<DlOpt tar={imageFile}><Aperture />Extracted image</DlOpt>)}
-                  {videoFile?.embed && (<DlOpt tar={videoFile}><Video />Extracted video</DlOpt>)}
-                  <DlOpt tar={convertedImageUrl}><FileImage />Converted image</DlOpt>
-                  <DlOpt tar={convertedVideoUrl}><FileVideo2 />Converted video</DlOpt>
+                  {imageFile?.embed && (
+                    <DropdownMenuItem onClick={() => handleDownload([imageFile])}>
+                        <Aperture />Extracted image
+                    </DropdownMenuItem>
+                  )}
+                  {videoFile?.embed && (
+                    <DropdownMenuItem onClick={() => handleDownload([videoFile])}>
+                        <Video />Extracted video
+                    </DropdownMenuItem>
+                  )}
+                  {convertedImageUrl && (
+                    <DropdownMenuItem onClick={() => handleDownload([convertedImageUrl])}>
+                        <FileImage />Converted image
+                    </DropdownMenuItem>
+                  )}
+                  {convertedVideoUrl && (
+                    <DropdownMenuItem onClick={() => handleDownload([convertedVideoUrl])}>
+                        <FileVideo2 />Converted video
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>)}
             </div>
@@ -985,11 +1010,14 @@ function App() {
                   onSelect={(o) => {
                     setEndPoint(o.label);
                     setEndPointToken(serverConfig[o.id].token);
+                    setEndPointKey(serverConfig[o.id].key);
+                    setPostFieldName(serverConfig[o.id].name);
+                    setUsePost(serverConfig[o.id].post);
                   }}
                 />
                 <div className="flex justify-between items-center m-0">
                   <label htmlFor="token">
-                    Authorization Token
+                    Token
                   </label>
                   <TooltipProvider>
                     <Tooltip>
@@ -1000,14 +1028,22 @@ function App() {
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-                <Input
-                  id="token"
-                  type="password"
-                  placeholder="Bearer token123..."
-                  value={endPointToken}
-                  onChange={(e) => setEndPointToken(e.target.value)}
-                />
-                <div className="flex items-center mt-4 space-x-2">
+                <div className="grid grid-cols-4 gap-3">
+                  <Input
+                    placeholder="Authorization"
+                    value={endPointKey}
+                    onChange={(e) => setEndPointKey(e.target.value)}
+                  />
+                  <Input
+                    id="token"
+                    className="col-span-3"
+                    type="password"
+                    placeholder="Bearer token123..."
+                    value={endPointToken}
+                    onChange={(e) => setEndPointToken(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center justify-start min-h-9 space-x-2">
                   <Switch
                     id="upload-method-switch"
                     checked={usePost}
@@ -1015,8 +1051,19 @@ function App() {
                     disabled={loading}
                   />
                   <label htmlFor="upload-method-switch">
-                    {usePost ? "POST" : "PUT"} Method
+                    {usePost ? "POST" : "PUT"} METHOD
                   </label>
+                  {usePost && (
+                    <>
+                      <span>with field name</span>
+                      <Input
+                        value={postFieldName}
+                        placeholder="file"
+                        className="max-w-25 bg-secondary border-none shadow-none"
+                        onChange={(e) => setPostFieldName(e.target.value)}
+                      />
+                    </>
+                  )}
                 </div>
                 <div className="flex w-full">
                   <Button
@@ -1048,8 +1095,8 @@ function App() {
                     <DropdownMenuContent align="end">
                       <UpOpt disabled={!imageFile} index={1} tar={isUpload} setter={setIsUpload}>{imageFile?.embed ? "Embed" : "Raw"} image</UpOpt>
                       <UpOpt disabled={!videoFile} index={2} tar={isUpload} setter={setIsUpload}>{videoFile?.embed ? "Embed" : "Raw"} video</UpOpt>
-                      <UpOpt disabled={!convertedImageUrl} index={4} tar={isUpload} setter={setIsUpload}>Converted image</UpOpt>
-                      <UpOpt disabled={!convertedVideoUrl} index={8} tar={isUpload} setter={setIsUpload}>Converted video</UpOpt>
+                      {convertedImageUrl && (<UpOpt index={4} tar={isUpload} setter={setIsUpload}>Converted image</UpOpt>)}
+                      {convertedVideoUrl && (<UpOpt index={8} tar={isUpload} setter={setIsUpload}>Converted video</UpOpt>)}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
