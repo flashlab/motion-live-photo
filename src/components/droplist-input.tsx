@@ -14,6 +14,7 @@ type DropdownInputProps = {
   onChange?: (value: string) => void;
   onDelete?: (index: number) => void;
   onSelect?: (option: Option) => void;
+  withFilter?: boolean; // If true, do not filter options based on input
 } & Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'onSelect' | 'value'>;
 
 export default function DropdownInput({
@@ -22,6 +23,7 @@ export default function DropdownInput({
   onChange,
   onDelete,
   onSelect,
+  withFilter = false,
   ...props
 }: DropdownInputProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -31,7 +33,7 @@ export default function DropdownInput({
 
   // Filter options based on input
   useEffect(() => {
-    if (value.trim() === '') {
+    if (!withFilter || value.trim() === '') {
       setFilteredOptions(options);
     } else {
       const filtered = options.filter(option => 
@@ -68,19 +70,17 @@ export default function DropdownInput({
 
   return (
     <div className="relative w-full">
-      <div className="relative">
-        <Input
-          ref={inputRef}
-          type="text"
-          className={cn("pr-10")}
-          value={value}
-          onChange={handleInputChange}
-          onFocus={() => setIsOpen(true)}
-          {...props}
-        />
-        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-          <ChevronsUpDown className="h-4 w-4 text-gray-400" />
-        </div>
+      <Input
+        ref={inputRef}
+        type="text"
+        className={cn("pr-10")}
+        value={value}
+        onChange={handleInputChange}
+        onFocus={() => setIsOpen(true)}
+        {...props}
+      />
+      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+        <ChevronsUpDown className="h-4 w-4 text-gray-400" />
       </div>
       
       {isOpen && (

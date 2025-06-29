@@ -1,3 +1,5 @@
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useDropzone } from "react-dropzone";
 import {Accordion, AccordionContent, AccordionItem, AccordionTrigger} from "@/components/ui/accordion";
 import {TooltipProvider, Tooltip, TooltipContent, TooltipTrigger} from "@/components/mobile-tooltip";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
@@ -14,14 +16,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
+import { LivePhoto, LivePhotoIcon } from '@/components/LivePhoto';
+import { PixBox, InputBtn, UpOpt } from '@/components/widget';
 import { useToast } from "@/hooks/use-toast";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import { FFMPEG_URL } from "@/lib/const";
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import { useDropzone } from "react-dropzone";
-import { LivePhoto, LivePhotoIcon } from '@/components/LivePhoto';
-import { PixBox, InputBtn, UpOpt } from '@/components/widget';
 import { resizeDimensions, humanFileSize, parseFileName } from '@/lib/utils';
 
 interface MediaDimensions {
@@ -37,11 +37,15 @@ interface BlobUrl {
   embed?: boolean;
 }
 
+interface UploadHeader {
+  key: string;
+  value: string;
+}
+
 interface SvrConfig {
   url: string;
-  token: string;
+  headers: UploadHeader[];
   post: boolean;
-  key: string;
   name: string;
 }
 
@@ -70,6 +74,7 @@ import {
   Clapperboard,
   FlagTriangleLeft,
   FlagTriangleRight,
+  Plus,
 } from "lucide-react";
 
 const fileWorker = new Worker(new URL('./lib/extractmotion.ts', import.meta.url), {type: "module"});
@@ -106,13 +111,13 @@ function App() {
 
   const [serverConfig, setServerConfig] = useState<SvrConfig[]>(loadStorageJson('serverConfig') ?? []);
   const [endPoint, setEndPoint] = useState<string>(serverConfig[0]?.url ?? "");
-  const [endPointKey, setEndPointKey] = useState<string>(serverConfig[0]?.key ?? "");
-  const [endPointToken, setEndPointToken] = useState<string>(serverConfig[0]?.token ?? "");
+  const [endPointHeader, setEndPointHeader] = useState<UploadHeader[]>(serverConfig[0]?.headers ?? []);
+  const [endPointHeaderKey, setEndPointHeaderKey] = useState<string>("");
+  const [endPointHeaderValue, setEndPointHeaderValue] = useState<string>("");
   const [postFieldName, setPostFieldName] = useState<string>(serverConfig[0]?.name || "file");
   const [usePost, setUsePost] = useState<boolean>(serverConfig[0]?.post ?? false);
   const [keepAudio, setKeepAudio] = useState(localStorage.getItem('keepAudio') === "true" ? true : false);
   const [isCoreMT, setIsCoreMT] = useState(localStorage.getItem('isCoreMT') === "true" ? true : false);
-
 
   const ffmpegRef = useRef(new FFmpeg());
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -226,7 +231,7 @@ function App() {
     e.stopPropagation();
     const configs = serverConfig;
     if (!!endPoint) {
-      const newConfig = {url: endPoint, token: endPointToken, key: endPointKey, name: postFieldName, post: usePost};
+      const newConfig = {url: endPoint, headers: endPointHeader, name: postFieldName, post: usePost};
       const matchIndex = configs.findIndex(o => o.url === endPoint);
       if (matchIndex > -1) configs.splice(matchIndex, 1);
       configs.unshift(newConfig);
@@ -318,7 +323,9 @@ function App() {
         };
       });
       xhr.open(usePost ? 'POST' : 'PUT', `${realEndPoint}`, true);
-      if (endPointKey && endPointToken) xhr.setRequestHeader(endPointKey, endPointToken);
+      for (const header of endPointHeader) {
+        xhr.setRequestHeader(header.key, header.value);
+      }
       xhr.send(usePost ? formData : blob);
       uploadPromise
         .then(() => {
@@ -466,7 +473,7 @@ function App() {
         await fetchFile(img.obj.url),
       );
       try {
-        await ffmpeg.exec(argsHead.concat(ffmpegArgs[img.arg]));
+        await ffmpeg.exec([...argsHead, ...ffmpegArgs[img.arg]]);
         const data = await ffmpeg.readFile(`output.${img.obj.ext}`);
         // TODO: determine image MIME.
         const imageBlob = new Blob([data], { type: "image/jpeg" });
@@ -488,14 +495,14 @@ function App() {
         if (film.arg === 3) {
           // pre excute with meaningless command to solve mp4-to-jpg error.
           await ffmpeg.exec(ffmpegArgs[0]);
-          await ffmpeg.exec(argsHead.concat(ffmpegArgs[3]));
+          await ffmpeg.exec([...argsHead, ...ffmpegArgs[3]]);
                     const data = await ffmpeg.readFile("extract.jpg");
           const blob = new Blob([data], { type: "image/jpeg" });
           // force extract jpg filetype.
           setImageFile({url: URL.createObjectURL(blob), size: blob.size, name: film.obj.name, ext: "jpg"});
           setCaptureStamp(extractStamp);
         } else {
-          await ffmpeg.exec(argsHead.concat(ffmpegArgs[film.arg]));
+          await ffmpeg.exec([...argsHead, ...ffmpegArgs[film.arg]]);
           const data = await ffmpeg.readFile("output.mov");
           const blob = new Blob([data], { type: "video/quicktime" });
           const newfile = URL.createObjectURL(blob);
@@ -997,7 +1004,6 @@ function App() {
                       <TooltipContent>Use <code>{`{filename}`}</code> to represent file name in url</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-
                 </div>
                 <DropdownInput
                   required
@@ -1009,39 +1015,62 @@ function App() {
                   onChange={(s) => setEndPoint(s)}
                   onSelect={(o) => {
                     setEndPoint(o.label);
-                    setEndPointToken(serverConfig[o.id].token);
-                    setEndPointKey(serverConfig[o.id].key);
+                    setEndPointHeader(serverConfig[o.id].headers || []);
                     setPostFieldName(serverConfig[o.id].name);
                     setUsePost(serverConfig[o.id].post);
                   }}
                 />
                 <div className="flex justify-between items-center m-0">
-                  <label htmlFor="token">
-                    Token
+                  <label htmlFor="endpointheader">
+                    Request Header ({endPointHeader.length})
                   </label>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <CircleAlert size={16} />
                       </TooltipTrigger>
-                      <TooltipContent>Authorization key value in request header</TooltipContent>
+                      <TooltipContent><i>key:value</i> pairs</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-                <div className="grid grid-cols-4 gap-3">
-                  <Input
+                <div className="flex items-center mb-2">
+                  <DropdownInput
+                    id="endpointheader"
+                    value={endPointHeaderKey}
                     placeholder="Authorization"
-                    value={endPointKey}
-                    onChange={(e) => setEndPointKey(e.target.value)}
+                    options={endPointHeader.map(({key}, i) => ({id: i, label: key}))}
+                    onDelete={(i) => setEndPointHeader(endPointHeader.filter((_v, index) => index !== i))}
+                    onChange={(s) => setEndPointHeaderKey(s)}
+                    onSelect={(o) => {
+                      setEndPointHeaderKey(o.label);
+                      setEndPointHeaderValue(endPointHeader[o.id].value);
+                    }}
                   />
                   <Input
-                    id="token"
-                    className="col-span-3"
-                    type="password"
-                    placeholder="Bearer token123..."
-                    value={endPointToken}
-                    onChange={(e) => setEndPointToken(e.target.value)}
+                  type="text"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck="false"
+                  autoCapitalize="none"
+                  placeholder="Bearer token123..."
+                  value={endPointHeaderValue}
+                  onChange={(e) => setEndPointHeaderValue(e.target.value)}
+                  className="ml-2 rounded-r-none focus-visible:ring-0 focus-visible:border-gray-300"
                   />
+                  <Button
+                  variant="outline"
+                  className="px-2 rounded-l-none border-l-0"
+                  onClick={() => {
+                    if (endPointHeaderKey && endPointHeaderValue) {
+                    setEndPointHeader([...endPointHeader, {key: endPointHeaderKey, value: endPointHeaderValue}]);
+                    setEndPointHeaderKey("");
+                    setEndPointHeaderValue("");
+                    }
+                  }}
+                  disabled={loading}
+                  >
+                  <Plus />
+                  </Button>
                 </div>
                 <div className="flex items-center justify-start min-h-9 space-x-2">
                   <Switch
@@ -1057,6 +1086,7 @@ function App() {
                     <>
                       <span>with field name</span>
                       <Input
+                        required
                         value={postFieldName}
                         placeholder="file"
                         className="max-w-25 bg-secondary border-none shadow-none"

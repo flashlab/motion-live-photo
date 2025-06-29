@@ -31,6 +31,7 @@ export function PixBox({ children, labelid, value, onChange }:
           value={tar}
           placeholder="seconds"
           onChange={e => Setter(e.target.valueAsNumber)}
+          autoComplete="off"
         />
         <Button
           className="rounded-full"
