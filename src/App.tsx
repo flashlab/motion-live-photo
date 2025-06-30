@@ -432,8 +432,6 @@ function App() {
     };
     setLoading(true);
 
-    const useCut = (beginStamp > 0 && stopStamp > beginStamp && beginStamp < (videoRef.current?.duration ?? -1))
-                   ? [] : undefined;
     const argsHead = [
       "-v",
       "level+info",
@@ -452,7 +450,8 @@ function App() {
           `scale=min(${maxDimensions?.at(0) || 99999}\\,iw):min(${maxDimensions?.at(1) || 99999}\\,ih):force_original_aspect_ratio=decrease`,
           `output.${img?.obj?.ext}`,
         ], [
-          ...useCut ?? ["-ss", beginStamp.toFixed(3), "-t", (stopStamp - beginStamp).toFixed(3)],
+          ...beginStamp ? ["-ss", beginStamp.toFixed(3)] : [],
+          ...stopStamp ? ["-t", (stopStamp - beginStamp).toFixed(3)] : [],
           "-i",
           `input.${film?.obj?.ext}`,
           ...["-vf", `scale=min(${maxDimensions?.at(2) || 99999}\\,iw):min(${maxDimensions?.at(3) || 99999}\\,ih):force_original_aspect_ratio=decrease`],
@@ -1046,7 +1045,7 @@ function App() {
                       <TooltipTrigger asChild>
                         <CircleAlert size={16} />
                       </TooltipTrigger>
-                      <TooltipContent><i>key:value</i> pairs; storage locally in PLAINTEXT!</TooltipContent>
+                      <TooltipContent><i>key:value</i> pairs<br/>storage locally in PLAINTEXT!</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
