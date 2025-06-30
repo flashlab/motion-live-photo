@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, ClipboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import {Accordion, AccordionContent, AccordionItem, AccordionTrigger} from "@/components/ui/accordion";
 import {TooltipProvider, Tooltip, TooltipContent, TooltipTrigger} from "@/components/mobile-tooltip";
@@ -37,16 +37,16 @@ interface BlobUrl {
   embed?: boolean;
 }
 
-interface UploadHeader {
+interface RequestParam {
   key: string;
   value: string;
 }
 
 interface SvrConfig {
   url: string;
-  headers: UploadHeader[];
+  headers: RequestParam[];
+  bodys: RequestParam[];
   post: boolean;
-  name: string;
 }
 
 import {
@@ -103,23 +103,26 @@ function App() {
   const [videoDimension, setVideoDimension] = useState<MediaDimensions | null>(null);
   const [imageDimension, setImageDimension] = useState<MediaDimensions | null>(null);
   const newImageDimensions = useMemo(() => {
-    return imageDimension ? resizeDimensions(imageDimension.width, imageDimension.height, maxDimensions[0], maxDimensions[1]) : null;
+    return imageDimension ? resizeDimensions(imageDimension.width, imageDimension.height, maxDimensions?.at(0) || 0, maxDimensions?.at(1) || 0) : null;
   }, [imageDimension, maxDimensions]);
   const newVideoDimensions = useMemo(() => {
-    return videoDimension ? resizeDimensions(videoDimension.width, videoDimension.height, maxDimensions[2], maxDimensions[3]) : null;
+    return videoDimension ? resizeDimensions(videoDimension.width, videoDimension.height, maxDimensions?.at(2) || 0, maxDimensions?.at(3) || 0) : null;
   }, [videoDimension, maxDimensions]);
 
   const [serverConfig, setServerConfig] = useState<SvrConfig[]>(loadStorageJson('serverConfig') ?? []);
-  const [endPoint, setEndPoint] = useState<string>(serverConfig[0]?.url ?? "");
-  const [endPointHeader, setEndPointHeader] = useState<UploadHeader[]>(serverConfig[0]?.headers ?? []);
-  const [endPointHeaderKey, setEndPointHeaderKey] = useState<string>("");
-  const [endPointHeaderValue, setEndPointHeaderValue] = useState<string>("");
-  const [postFieldName, setPostFieldName] = useState<string>(serverConfig[0]?.name || "file");
-  const [usePost, setUsePost] = useState<boolean>(serverConfig[0]?.post ?? false);
+  const [endPoint, setEndPoint] = useState<string>(serverConfig?.at(0)?.url ?? "");
+  const [endPointHeader, setEndPointHeader] = useState<RequestParam[]>(serverConfig?.at(0)?.headers ?? []);
+  const [endPointHeaderKey, setEndPointHeaderKey] = useState<string>(endPointHeader?.at(0)?.key ?? "");
+  const [endPointHeaderValue, setEndPointHeaderValue] = useState<string>(endPointHeader?.at(0)?.value ?? "");
+  const [endPointBody, setEndPointBody] = useState<RequestParam[]>(serverConfig?.at(0)?.bodys ?? [{key: "file", value: "{File}"}]);
+  const [endPointBodyKey, setEndPointBodyKey] = useState<string>(endPointBody?.at(0)?.key ?? "");
+  const [endPointBodyValue, setEndPointBodyValue] = useState<string>(endPointBody?.at(0)?.value ?? "");
+  const [usePost, setUsePost] = useState<boolean>(serverConfig?.at(0)?.post ?? false);
   const [keepAudio, setKeepAudio] = useState(localStorage.getItem('keepAudio') === "true" ? true : false);
   const [isCoreMT, setIsCoreMT] = useState(localStorage.getItem('isCoreMT') === "true" ? true : false);
 
   const ffmpegRef = useRef(new FFmpeg());
+  const hiddenInputRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const logContainerRef = useRef<HTMLDivElement | null>(null);
@@ -132,13 +135,14 @@ function App() {
   const [isUpload, setIsUpload] = useState(12);
   const [isExtractRaw, setisExtractRaw] = useState(1);
   const { toast } = useToast();
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, open, isDragActive } = useDropzone({
     onDrop: (files) => files[0] && handleFileSelect(files[0]),
     accept: {
       "video/*": videoTypes.map(v => '.'+v),
       "image/*": [],
     },
     multiple: false,
+    noClick: true,
     disabled: loading, // Disable dropzone while loading
   });
 
@@ -231,7 +235,7 @@ function App() {
     e.stopPropagation();
     const configs = serverConfig;
     if (!!endPoint) {
-      const newConfig = {url: endPoint, headers: endPointHeader, name: postFieldName, post: usePost};
+      const newConfig = {url: endPoint, headers: endPointHeader, bodys: endPointBody, post: usePost};
       const matchIndex = configs.findIndex(o => o.url === endPoint);
       if (matchIndex > -1) configs.splice(matchIndex, 1);
       configs.unshift(newConfig);
@@ -304,7 +308,10 @@ function App() {
       const realEndPoint = endPoint.replace("{filename}", fullName);
       const blob = await fetch(media.url).then(r => r.blob());
       const formData = new FormData();
-      formData.append(postFieldName, blob, fullName);
+      for (const body of endPointBody) {
+        if (body.value === "{File}") formData.append(body.key, blob, fullName);
+        else formData.append(body.key, body.value);
+      }
       const xhr = new XMLHttpRequest();
       const uploadPromise = new Promise<void>((resolve, reject) => {
         xhr.upload.addEventListener('progress', (e) => {
@@ -343,6 +350,15 @@ function App() {
         });
     }
   };
+
+    const handlePasteFile = async (event: ClipboardEvent<HTMLInputElement>) => {
+      if (!hiddenInputRef.current) return;
+      if (event.clipboardData?.files) {
+        (hiddenInputRef.current as unknown as HTMLInputElement).files =
+          event.clipboardData.files;
+        hiddenInputRef.current.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    };
 
   const load = async (mt: boolean = false) => {
 
@@ -434,13 +450,13 @@ function App() {
           "-i",
           `input.${img?.obj?.ext}`,
           "-vf",
-          `scale=min(${maxDimensions[0]}\\,iw):min(${maxDimensions[1]}\\,ih):force_original_aspect_ratio=decrease`,
+          `scale=min(${maxDimensions?.at(0) || 99999}\\,iw):min(${maxDimensions?.at(1) || 99999}\\,ih):force_original_aspect_ratio=decrease`,
           `output.${img?.obj?.ext}`,
         ], [
           ...useCut ?? ["-ss", beginStamp.toFixed(3), "-t", (stopStamp - beginStamp).toFixed(3)],
           "-i",
           `input.${film?.obj?.ext}`,
-          ...["-vf", `scale=min(${maxDimensions[2]}\\,iw):min(${maxDimensions[3]}\\,ih):force_original_aspect_ratio=decrease`],
+          ...["-vf", `scale=min(${maxDimensions?.at(2) || 99999}\\,iw):min(${maxDimensions?.at(3) || 99999}\\,ih):force_original_aspect_ratio=decrease`],
           ...["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"],
           ...keepAudio ? ["-acodec", "copy"] : ["-an"],
           "output.mov",
@@ -587,17 +603,19 @@ function App() {
             <div
               {...getRootProps()}
               className={`border-2 border-dashed rounded-md p-4 flex flex-col items-center justify-center`}
+              onPaste={handlePasteFile}
             >
-              <input {...getInputProps()} />
+              <input {...getInputProps()} ref={hiddenInputRef} />
               <p className="text-sm text-center">
                 {isDragActive
                   ? "Auto detect motion photo..."
                   : "Drag and drop to start, or click to select one"}
               </p>
               <Button
-              variant="outline"
+                variant="outline"
                 size="sm"
                 className="mt-2"
+                onClick={open}
                 disabled={loading} // Disable the button while loading
               >
                 {loading ? (
@@ -804,16 +822,16 @@ function App() {
                       </div>
                       <div className="grid gap-2 [&>div]:grid [&>div]:grid-cols-3 [&>div]:items-center [&>div]:gap-4
                                       [&_label]:flex [&_label]:gap-2 [&_input]:col-span-2 [&_input]:h-8">
-                        <PixBox labelid="iwidth" value={maxDimensions[0]} onChange={e => onSetDimensions(e, 0)}>
+                        <PixBox labelid="iwidth" value={maxDimensions?.at(0) || 0} onChange={e => onSetDimensions(e, 0)}>
                           <Aperture /><MoveHorizontal />
                         </PixBox>
-                        <PixBox labelid="iheight" value={maxDimensions[1]} onChange={e => onSetDimensions(e, 1)}>
+                        <PixBox labelid="iheight" value={maxDimensions?.at(1) || 0} onChange={e => onSetDimensions(e, 1)}>
                           <Aperture /><MoveVertical />
                         </PixBox>
-                        <PixBox labelid="vwidth" value={maxDimensions[2]} onChange={e => onSetDimensions(e, 2)}>
+                        <PixBox labelid="vwidth" value={maxDimensions?.at(2) || 0} onChange={e => onSetDimensions(e, 2)}>
                           <Video /><MoveHorizontal />
                         </PixBox>
-                        <PixBox labelid="vheight" value={maxDimensions[3]} onChange={e => onSetDimensions(e, 3)}>
+                        <PixBox labelid="vheight" value={maxDimensions?.at(3) || 0} onChange={e => onSetDimensions(e, 3)}>
                           <Video /><MoveVertical />
                         </PixBox>
                       </div>
@@ -1015,9 +1033,9 @@ function App() {
                   onChange={(s) => setEndPoint(s)}
                   onSelect={(o) => {
                     setEndPoint(o.label);
-                    setEndPointHeader(serverConfig[o.id].headers || []);
-                    setPostFieldName(serverConfig[o.id].name);
-                    setUsePost(serverConfig[o.id].post);
+                    setEndPointHeader(serverConfig[o.id].headers ?? []);
+                    setEndPointBody(serverConfig[o.id].bodys ?? []);
+                    setUsePost(serverConfig[o.id].post ?? false);
                   }}
                 />
                 <div className="flex justify-between items-center m-0">
@@ -1062,9 +1080,9 @@ function App() {
                   className="px-2 rounded-l-none border-l-0"
                   onClick={() => {
                     if (endPointHeaderKey && endPointHeaderValue) {
-                    setEndPointHeader([...endPointHeader, {key: endPointHeaderKey, value: endPointHeaderValue}]);
-                    setEndPointHeaderKey("");
-                    setEndPointHeaderValue("");
+                      setEndPointHeader([...endPointHeader, {key: endPointHeaderKey, value: endPointHeaderValue}]);
+                      setEndPointHeaderKey("");
+                      setEndPointHeaderValue("");
                     }
                   }}
                   disabled={loading}
@@ -1082,19 +1100,64 @@ function App() {
                   <label htmlFor="upload-method-switch">
                     {usePost ? "POST" : "PUT"} METHOD
                   </label>
-                  {usePost && (
-                    <>
-                      <span>with field name</span>
-                      <Input
-                        required
-                        value={postFieldName}
-                        placeholder="file"
-                        className="max-w-25 bg-secondary border-none shadow-none"
-                        onChange={(e) => setPostFieldName(e.target.value)}
-                      />
-                    </>
-                  )}
                 </div>
+                {usePost && (
+                  <>
+                    <div className="flex justify-between items-center m-0">
+                      <label htmlFor="endpointheader">
+                        Request Body ({endPointBody.length})
+                      </label>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <CircleAlert size={16} />
+                          </TooltipTrigger>
+                          <TooltipContent>use <code>{`{File}`}</code> to represent file.</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <div className="flex items-center mb-2">
+                      <DropdownInput
+                        id="endpointheader"
+                        value={endPointBodyKey}
+                        placeholder="file"
+                        options={endPointBody.map(({key}, i) => ({id: i, label: key}))}
+                        onDelete={(i) => setEndPointBody(endPointBody.filter((_v, index) => index !== i))}
+                        onChange={(s) => setEndPointBodyKey(s)}
+                        onSelect={(o) => {
+                          setEndPointBodyKey(o.label);
+                          setEndPointBodyValue(endPointBody[o.id].value);
+                        }}
+                      />
+                      <Input
+                      type="text"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck="false"
+                      autoCapitalize="none"
+                      placeholder="Bearer token123..."
+                      value={endPointBodyValue}
+                      onChange={(e) => setEndPointBodyValue(e.target.value)}
+                      className="ml-2 rounded-r-none focus-visible:ring-0 focus-visible:border-gray-300"
+                      />
+                      <Button
+                      variant="outline"
+                      className="px-2 rounded-l-none border-l-0"
+                      onClick={() => {
+                        if (endPointBodyKey && endPointBodyValue) {
+                          setEndPointBody([...endPointBody, {key: endPointBodyKey, value: endPointBodyValue}]);
+                          setEndPointBodyKey("");
+                          setEndPointBodyValue("");
+                        }
+                      }}
+                      disabled={loading}
+                      >
+                      <Plus />
+                      </Button>
+                    </div>
+                  </>
+                )}
+
                 <div className="flex w-full">
                   <Button
                     variant="outline"
@@ -1103,18 +1166,18 @@ function App() {
                     className="flex-1 rounded-r-none"
                     disabled={loading || !isFileSelect}
                   >
-                    {loading ? (
-                      <>
-                        <UploadIcon className="mr-1 h-4 w-4 animate-pulse" />
-                        {/* TODO: Manually abort uploading. */}
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <UploadIcon className="mr-1 h-4 w-4" />
-                        Upload
-                      </>
-                    )}
+                  {loading ? (
+                    <>
+                      <UploadIcon className="mr-1 h-4 w-4 animate-pulse" />
+                      {/* TODO: Manually abort uploading. */}
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <UploadIcon className="mr-1 h-4 w-4" />
+                      Upload
+                    </>
+                  )}
                   </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
