@@ -53,7 +53,7 @@ import {
   Download,
   UploadIcon,
   Loader,
-  Play,
+  Route,
   RotateCw,
   Upload,
   ChevronDown,
@@ -127,17 +127,17 @@ function App() {
   const logContainerRef = useRef<HTMLDivElement | null>(null);
   const shouldAutoScrollRef = useRef(true);
 
-  const videoTypes = ["mp4", "mov", "ogg", "webm"];
+  const videoTypes = ["mp4", "mov"];
   const imageTypes = ["jpg", "png"];
   const isFileSelect = useMemo(() => !!(videoFile || imageFile), [videoFile, imageFile]);
   const [isConvert, setIsConvert] = useState(3);
   const [isUpload, setIsUpload] = useState(12);
   const [isExtractRaw, setisExtractRaw] = useState(1);
   const { toast } = useToast();
-  const { getRootProps, getInputProps, open, isDragActive, inputRef } = useDropzone({
+  const { getRootProps, getInputProps, open, isDragActive, isDragAccept, inputRef } = useDropzone({
     onDrop: (files) => files[0] && handleFileSelect(files[0]),
     accept: {
-      "video/*": videoTypes.map(v => '.'+v),
+      "video/*": [],
       "image/*": [],
     },
     multiple: false,
@@ -591,8 +591,8 @@ function App() {
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
       <Card className="max-w-full md:max-w-[700px] mx-auto md:p-2 my-4">
         <CardHeader>
-          <CardTitle className="flex justify-between">
-            📸 Motion photo Playground
+          <CardTitle className="flex justify-between items-center">
+            <h2>📸 Motion photo Assistant</h2>
           <ModeToggle />
           </CardTitle>
         </CardHeader>
@@ -605,9 +605,8 @@ function App() {
             >
               <input {...getInputProps()} />
               <p className="text-sm text-center">
-                {isDragActive
-                  ? "Auto detect motion photo..."
-                  : "Drag/Paste media, or click to select one"}
+                {!isDragActive && "Drag/paste here, or click to load files"}
+                {isDragAccept && "Auto detect motion photo.."}
               </p>
               <Button
                 variant="outline"
@@ -619,12 +618,12 @@ function App() {
                 {loading ? (
                   <>
                     <Loader className="animate-spin" />
-                    Loading...
+                    Loading..
                   </>
                 ) : (
                   <>
                     <Upload className="h-4 w-4" />
-                    Select File
+                    Select Media
                   </>
                 )}
               </Button>
@@ -637,6 +636,9 @@ function App() {
                     {type}
                   </Badge>
                 ))}
+                <Badge variant={videoFile && !videoTypes.includes(videoFile.ext) ? "default" : "outline"}>
+                  {(videoFile && !videoTypes.includes(videoFile.ext)) ? videoFile.ext : '..'}
+                </Badge>
                 {imageTypes.map((type) => (
                   <Badge
                     key={type}
@@ -646,7 +648,7 @@ function App() {
                   </Badge>
                 ))}
                 <Badge variant={imageFile && !imageTypes.includes(imageFile.ext) ? "default" : "secondary"}>
-                  {(imageFile && !imageTypes.includes(imageFile.ext)) ? imageFile.ext : '...'}
+                  {(imageFile && !imageTypes.includes(imageFile.ext)) ? imageFile.ext : '..'}
                 </Badge>
               </div>
             </div>
@@ -766,7 +768,7 @@ function App() {
                         <TooltipTrigger asChild>
                           <h4 className="font-medium leading-none flex gap-1 flex-1 mb-4">Video setting <CircleAlert size={16} /></h4>
                         </TooltipTrigger>
-                        <TooltipContent>Set max pixels, 0 to keep original</TooltipContent>
+                        <TooltipContent>Set ffmpeg params, click button to apply current time of video</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                     <div className="grid gap-3">
@@ -806,7 +808,7 @@ function App() {
                             <TooltipTrigger asChild>
                               <h4 className="font-medium leading-none flex gap-1 flex-1">Scale <CircleAlert size={16} /></h4>
                             </TooltipTrigger>
-                            <TooltipContent>Set max pixels, 0 to keep original</TooltipContent>
+                            <TooltipContent>Set max pixels, keep original or reset with buttons on the right</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                         <Infinity
@@ -908,12 +910,12 @@ function App() {
                   {loading ? (
                     <>
                       <Loader className="animate-spin" />
-                      Loading...
+                      Loading..
                     </>
                   ) : (
                     <>
-                      <Play className="h-4 w-4" />
-                      Load wasm
+                      <Route className="h-4 w-4" />
+                      Load wasm (~{humanFileSize(FFMPEG_URL[isCoreMT ? "core_mt" : "core"].size, false, 0)})
                     </>
                   )}
                 </Button>
@@ -993,7 +995,7 @@ function App() {
             <Accordion type="single" collapsible className="mt-2">
               <AccordionItem value="upload">
               <AccordionTrigger>
-                Fast Upload
+                📤Fast Upload
                 <div className="flex ml-auto mr-2 items-center gap-2">
                   <IconButton 
                     onAction={handleSaveConfig}
@@ -1053,6 +1055,7 @@ function App() {
                   <DropdownInput
                     id="endpointheader"
                     value={endPointHeaderKey}
+                    className="rounded-r-none focus-visible:ring-0 focus-visible:border-gray-300"
                     placeholder="Authorization"
                     options={endPointHeader.map(({key}, i) => ({id: i, label: key}))}
                     onDelete={(i) => setEndPointHeader(endPointHeader.filter((_v, index) => index !== i))}
@@ -1068,10 +1071,10 @@ function App() {
                   autoCorrect="off"
                   spellCheck="false"
                   autoCapitalize="none"
-                  placeholder="Bearer token123..."
+                  placeholder="Bearer token123.."
                   value={endPointHeaderValue}
                   onChange={(e) => setEndPointHeaderValue(e.target.value)}
-                  className="ml-2 rounded-r-none focus-visible:ring-0 focus-visible:border-gray-300"
+                  className="rounded-none focus-visible:ring-0 focus-visible:border-gray-300 border-l-0"
                   />
                   <Button
                   variant="outline"
@@ -1118,6 +1121,7 @@ function App() {
                       <DropdownInput
                         id="endpointheader"
                         value={endPointBodyKey}
+                        className="rounded-r-none focus-visible:ring-0 focus-visible:border-gray-300"
                         placeholder="file"
                         options={endPointBody.map(({key}, i) => ({id: i, label: key}))}
                         onDelete={(i) => setEndPointBody(endPointBody.filter((_v, index) => index !== i))}
@@ -1133,10 +1137,10 @@ function App() {
                       autoCorrect="off"
                       spellCheck="false"
                       autoCapitalize="none"
-                      placeholder="Bearer token123..."
+                      placeholder="Bearer token123.."
                       value={endPointBodyValue}
                       onChange={(e) => setEndPointBodyValue(e.target.value)}
-                      className="ml-2 rounded-r-none focus-visible:ring-0 focus-visible:border-gray-300"
+                      className="rounded-none focus-visible:ring-0 focus-visible:border-gray-300 border-l-0"
                       />
                       <Button
                       variant="outline"
@@ -1168,7 +1172,7 @@ function App() {
                     <>
                       <UploadIcon className="mr-1 h-4 w-4 animate-pulse" />
                       {/* TODO: Manually abort uploading. */}
-                      Processing...
+                      Processing..
                     </>
                   ) : (
                     <>
@@ -1196,7 +1200,7 @@ function App() {
               </AccordionItem>
               <AccordionItem value="log">
                 <AccordionTrigger>
-                  Click to show Logs
+                  📜Realtime Logs
                   <div className="flex ml-auto mr-2 items-center gap-2">
                     <Trash2 size={16} role="button"
                       onClick={(e) => {handleLog(e, false)}}
