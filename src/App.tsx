@@ -122,7 +122,6 @@ function App() {
   const [isCoreMT, setIsCoreMT] = useState(localStorage.getItem('isCoreMT') === "true" ? true : false);
 
   const ffmpegRef = useRef(new FFmpeg());
-  const hiddenInputRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const logContainerRef = useRef<HTMLDivElement | null>(null);
@@ -135,7 +134,7 @@ function App() {
   const [isUpload, setIsUpload] = useState(12);
   const [isExtractRaw, setisExtractRaw] = useState(1);
   const { toast } = useToast();
-  const { getRootProps, getInputProps, open, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, open, isDragActive, inputRef } = useDropzone({
     onDrop: (files) => files[0] && handleFileSelect(files[0]),
     accept: {
       "video/*": videoTypes.map(v => '.'+v),
@@ -352,11 +351,11 @@ function App() {
   };
 
     const handlePasteFile = async (event: ClipboardEvent<HTMLInputElement>) => {
-      if (!hiddenInputRef.current) return;
+      if (!inputRef.current) return;
       if (event.clipboardData?.files) {
-        (hiddenInputRef.current as unknown as HTMLInputElement).files =
+        (inputRef.current as unknown as HTMLInputElement).files =
           event.clipboardData.files;
-        hiddenInputRef.current.dispatchEvent(new Event("change", { bubbles: true }));
+        inputRef.current.dispatchEvent(new Event("change", { bubbles: true }));
       }
     };
 
@@ -605,11 +604,11 @@ function App() {
               className={`border-2 border-dashed rounded-md p-4 flex flex-col items-center justify-center`}
               onPaste={handlePasteFile}
             >
-              <input {...getInputProps()} ref={hiddenInputRef} />
+              <input {...getInputProps()} />
               <p className="text-sm text-center">
                 {isDragActive
                   ? "Auto detect motion photo..."
-                  : "Drag and drop to start, or click to select one"}
+                  : "Drag/Paste media, or click to select one"}
               </p>
               <Button
                 variant="outline"
@@ -626,7 +625,7 @@ function App() {
                 ) : (
                   <>
                     <Upload className="h-4 w-4" />
-                    Select Media
+                    Select File
                   </>
                 )}
               </Button>
@@ -1047,7 +1046,7 @@ function App() {
                       <TooltipTrigger asChild>
                         <CircleAlert size={16} />
                       </TooltipTrigger>
-                      <TooltipContent><i>key:value</i> pairs</TooltipContent>
+                      <TooltipContent><i>key:value</i> pairs; storage locally in PLAINTEXT!</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
