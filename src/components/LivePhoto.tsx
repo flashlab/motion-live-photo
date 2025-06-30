@@ -33,7 +33,7 @@ export function LivePhoto({ url, videoUrl, stamp, className }: { url?: string; v
 
   return (
       <div ref={livePhotoRef} className={
-        cn(className, "w-full object-contain h-[50vh]")
+        cn(className, "w-full object-contain h-100")
       } >
         {!window.LivePhotosKit && (<Loader className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin" />)}
       </div>

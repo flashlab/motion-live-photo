@@ -698,36 +698,37 @@ function App() {
               </div>
             </Tabs>
 
-            <div id="meta_panel" className="grid gap-3 pt-4 m-0 border-t-2 border-dashed has-[div]:mb-4">
+            <div id="meta_panel"
+              className="grid gap-y-3 pt-4 border-t-2 border-dashed has-[div]:mb-4 *:font-normal *:sm:rounded-full *:pl-1 *:gap-1.5 sm:gap-x-3">
               {videoFile && (
                 <>
-                  <Badge variant="outline" className="rounded-full pl-1 gap-1.5 font-normal">
+                  <Badge variant="outline" className="rounded-r-none">
                     <Video />
                     {humanFileSize(videoFile.size)}
                     <ArrowRight />
                     {convertedVideoUrl ? humanFileSize(convertedVideoUrl.size) : "??"}
                   </Badge>
-                  <Badge variant="outline" className="rounded-full pl-1 gap-1.5 font-normal">
+                  <Badge variant="outline" className="rounded-l-none">
                     <ImageUpscale />
-                    {videoDimension ? `${videoDimension.width}x${videoDimension.height}` : "??"}
+                    {videoDimension ? `${videoDimension.width} x ${videoDimension.height}` : "??"}
                     <ArrowRight {...(convertedVideoUrl && {color: "#3e9392"})} />
-                    {newVideoDimensions ? `${newVideoDimensions.width}x${newVideoDimensions.height}` : "??"}
+                    {newVideoDimensions ? `${newVideoDimensions.width} x ${newVideoDimensions.height}` : "??"}
                   </Badge>
                 </>
               )}
               {imageFile && (
                 <>
-                  <Badge variant="outline" className="rounded-full pl-1 gap-1.5 font-normal">
+                  <Badge variant="outline" className="rounded-r-none">
                     <Aperture />
                     {humanFileSize(imageFile.size)}
                     <ArrowRight />
                     {convertedImageUrl ? humanFileSize(convertedImageUrl.size) : "??"}
                   </Badge>
-                  <Badge variant="outline" className="rounded-full pl-1 gap-1.5 font-normal">
+                  <Badge variant="outline" className="rounded-l-none">
                     <ImageUpscale />
-                    {imageDimension ? `${imageDimension.width}x${imageDimension.height}` : "??"}
+                    {imageDimension ? `${imageDimension.width} x ${imageDimension.height}` : "??"}
                     <ArrowRight {...(convertedImageUrl && {color: "#3e9392"})} />
-                    {newImageDimensions ? `${newImageDimensions.width}x${newImageDimensions.height}` : "??"}
+                    {newImageDimensions ? `${newImageDimensions.width} x ${newImageDimensions.height}` : "??"}
                   </Badge>
                 </>)
               }
@@ -1055,7 +1056,7 @@ function App() {
                   <DropdownInput
                     id="endpointheader"
                     value={endPointHeaderKey}
-                    className="rounded-r-none focus-visible:ring-0 focus-visible:border-gray-300"
+                    className="rounded-r-none"
                     placeholder="Authorization"
                     options={endPointHeader.map(({key}, i) => ({id: i, label: key}))}
                     onDelete={(i) => setEndPointHeader(endPointHeader.filter((_v, index) => index !== i))}
@@ -1074,11 +1075,11 @@ function App() {
                   placeholder="Bearer token123.."
                   value={endPointHeaderValue}
                   onChange={(e) => setEndPointHeaderValue(e.target.value)}
-                  className="rounded-none focus-visible:ring-0 focus-visible:border-gray-300 border-l-0"
+                  className="rounded-none border-x-0 focus:border-x focus:z-99"
                   />
                   <Button
                   variant="outline"
-                  className="px-2 rounded-l-none border-l-0"
+                  className="px-2 rounded-l-none"
                   onClick={() => {
                     if (endPointHeaderKey && endPointHeaderValue) {
                       setEndPointHeader([...endPointHeader, {key: endPointHeaderKey, value: endPointHeaderValue}]);
@@ -1121,7 +1122,7 @@ function App() {
                       <DropdownInput
                         id="endpointheader"
                         value={endPointBodyKey}
-                        className="rounded-r-none focus-visible:ring-0 focus-visible:border-gray-300"
+                        className="rounded-r-none"
                         placeholder="file"
                         options={endPointBody.map(({key}, i) => ({id: i, label: key}))}
                         onDelete={(i) => setEndPointBody(endPointBody.filter((_v, index) => index !== i))}
@@ -1140,11 +1141,11 @@ function App() {
                       placeholder="Bearer token123.."
                       value={endPointBodyValue}
                       onChange={(e) => setEndPointBodyValue(e.target.value)}
-                      className="rounded-none focus-visible:ring-0 focus-visible:border-gray-300 border-l-0"
+                      className="rounded-none border-x-0 focus:border-x focus:z-99"
                       />
                       <Button
                       variant="outline"
-                      className="px-2 rounded-l-none border-l-0"
+                      className="px-2 rounded-l-none"
                       onClick={() => {
                         if (endPointBodyKey && endPointBodyValue) {
                           setEndPointBody([...endPointBody, {key: endPointBodyKey, value: endPointBodyValue}]);
