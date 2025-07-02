@@ -699,7 +699,7 @@ function App() {
             </Tabs>
 
             <div id="meta_panel"
-              className="grid gap-y-3 pt-4 border-t-2 border-dashed has-[div]:mb-4 *:font-normal *:sm:rounded-full *:pl-1 *:gap-1.5 sm:gap-x-3">
+              className="grid gap-y-3 border-t-2 border-dashed has-[div]:pt-4 *:font-normal *:sm:rounded-full *:pl-1 *:gap-1.5 sm:gap-x-3">
               {videoFile && (
                 <>
                   <Badge variant="outline" className="rounded-r-none">
@@ -1008,7 +1008,7 @@ function App() {
               </AccordionTrigger>
               <AccordionContent>
               <form
-                className="space-y-4 pt-2 mx-2 [&_*]:text-xs"
+                className="space-y-4 pt-2 pb-4 mx-2 [&_*]:text-xs"
                 onSubmit={(e) => {e.preventDefault();handleUpload()}}
               >
                 <div className="flex justify-between items-center m-0">
@@ -1079,6 +1079,7 @@ function App() {
                   />
                   <Button
                   variant="outline"
+                  type="button"
                   className="px-2 rounded-l-none"
                   onClick={() => {
                     if (endPointHeaderKey && endPointHeaderValue) {
@@ -1091,17 +1092,6 @@ function App() {
                   >
                   <Plus />
                   </Button>
-                </div>
-                <div className="flex items-center justify-start min-h-9 space-x-2">
-                  <Switch
-                    id="upload-method-switch"
-                    checked={usePost}
-                    onCheckedChange={(checked) => { setUsePost(checked) }}
-                    disabled={loading}
-                  />
-                  <label htmlFor="upload-method-switch">
-                    {usePost ? "POST" : "PUT"} METHOD
-                  </label>
                 </div>
                 {usePost && (
                   <>
@@ -1145,6 +1135,7 @@ function App() {
                       />
                       <Button
                       variant="outline"
+                      type="button"
                       className="px-2 rounded-l-none"
                       onClick={() => {
                         if (endPointBodyKey && endPointBodyValue) {
@@ -1160,6 +1151,17 @@ function App() {
                     </div>
                   </>
                 )}
+                <div className="flex items-center justify-start min-h-10 space-x-2">
+                  <Switch
+                    id="upload-method-switch"
+                    checked={usePost}
+                    onCheckedChange={(checked) => { setUsePost(checked) }}
+                    disabled={loading}
+                  />
+                  <label htmlFor="upload-method-switch">
+                    {usePost ? "POST" : "PUT"} METHOD
+                  </label>
+                </div>
 
                 <div className="flex w-full">
                   <Button

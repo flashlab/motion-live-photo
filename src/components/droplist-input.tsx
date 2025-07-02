@@ -86,7 +86,7 @@ export default function DropdownInput({
       {isOpen && (
         <div 
           ref={dropdownRef}
-          className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
+          className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-27 overflow-auto"
         >
           {filteredOptions.length > 0 ? (
             <ul className="py-1">
