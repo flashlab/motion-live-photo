@@ -77,7 +77,7 @@ export function parseFileName(filename: string) {
     name = filename;
   } else {
     name = filename.substring(0, lastDotIndex);
-    ext = filename.substring(lastDotIndex + 1);
+    ext = filename.substring(lastDotIndex + 1).toLowerCase();
   }
   
   return { name: name, ext: ext };

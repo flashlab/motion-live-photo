@@ -34,7 +34,7 @@ interface BlobUrl {
   size: number;
   ext: string;
   name: string;
-  embed?: boolean;
+  type?: string;
 }
 
 interface RequestParam {
@@ -77,7 +77,7 @@ import {
   Plus,
 } from "lucide-react";
 
-const fileWorker = new Worker(new URL('./lib/extractmotion.ts', import.meta.url), {type: "module"});
+let fileWorker: Worker | null = null;
 
 function App() {
   const [loaded, setLoaded] = useState(false);
@@ -145,38 +145,50 @@ function App() {
     disabled: loading, // Disable dropzone while loading
   });
 
-  fileWorker.onmessage = (e: MessageEvent) => {
-    switch (e.data.type) {
-      case "res":
-        if (videoRef.current) videoRef.current.src = e.data.video.url;
-        setVideoFile(e.data.video);
-        setImageFile(e.data.image);
-        setCaptureStamp(e.data.video.stamp/1000000);
-        setLoading(false);
-        toast({
-          description: "🚀 Motion photo loaded.",
+  const parseImageFile = async (file: File) => {
+    return new Promise<string>((resolve, reject) => {
+      const isHeif = /\.(heic|heif)$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif';
+      if (isHeif) {
+        // heic to jpeg
+        setLogMessages((prev) => [...prev, `📣 HEIC image detected, converting to JPEG...`]);
+        import('heic-to').then(({ heicTo }) => {
+          heicTo({blob: file, type: 'image/jpeg', quality: 0.8}).then((blob) => {
+            setImageFile({url: URL.createObjectURL(blob), size: blob.size, ext: "jpg", name: name + "_heic", type: "Heic derived"});
+            setMediaTab("image");
+            resolve("🚀 HEIC image converted to JPEG.")
+          }).catch((err) => {
+            reject(`HEIC image: ${err}`);
+          });
         });
-        break;
-      case "log":
-        setLogMessages((prev) => [...prev, e.data.msg]);
-        break;
-      case "err":
-        const {name, ext} = parseFileName(e.data.rawfile.name);
-        setImageFile({url: URL.createObjectURL(e.data.rawfile), name: name, size: e.data.rawfile.size, ext: ext});
-        setMediaTab("image");
-        setLoading(false);
-        toast({
-          description: `🚀 Image loaded, Not motion: ${e.data.msg}`,
-        });
-    };
-  };
+      } else {
+        if (!fileWorker) {
+          // Initialize worker if not already done
+          fileWorker = new Worker(new URL('./lib/extractmotion.ts', import.meta.url), {type: "module"});
+        }
+        fileWorker.onmessage = (e: MessageEvent) => {
+          switch (e.data.type) {
+            case "res":
+              // motion photo
+              setImageFile({...e.data.image, name: file.name.replace(/\.[^.]+$/, '_embed')});
+              setVideoFile({...e.data.video, name: file.name.replace(/\.[^.]+$/, '_embed')});
+              setCaptureStamp(e.data.video.stamp/1000000);
+              resolve("🚀 Motion photo loaded.");
+              break;
+            case "log":
+              setLogMessages((prev) => [...prev, e.data.msg]);
+              break;
+            case "err":
+              reject(new Error(`motion photo: ${e.data.msg}`));
+          };
+        };
 
-  fileWorker.onerror = () => {
-    toast({
-      description: `⚠️ Error while extracting motion photo.`,
-    });
-    setLoading(false);
-  };
+        fileWorker.onerror = () => {
+          reject(new Error(`image`));
+        };
+        fileWorker.postMessage(file);
+      }
+    })
+  }
 
   const onLoadedMetadata = () => {
     if (!videoRef.current) return;
@@ -274,23 +286,34 @@ function App() {
     }
   };
 
-  const handleFileSelect = (file: File): void => {
+  const handleFileSelect = async (file: File) => {
     // get file name
     const {name, ext} = parseFileName(file.name);
     const mime = file.type;
     // console.log(mime);
     if (mime.startsWith("video/")) {
       const newfile = URL.createObjectURL(file);
-      if (videoRef.current) videoRef.current.src = newfile;
       setVideoFile({url: newfile, size: file.size, name: name, ext: ext});
-      setLoading(false);
       setMediaTab("video");
       toast({
         description: "🚀 Video file loaded. ",
       });
     } else if (mime.startsWith("image/")) {
       setLoading(true);
-      fileWorker.postMessage(file);
+      parseImageFile(file).then((msg) => {
+          toast({
+            description: msg,
+          });
+        }).catch((err) => {
+          // If not motion photo, load as image.
+          setImageFile({url: URL.createObjectURL(file), size: file.size, name: name, ext: ext});
+          setMediaTab("image");
+          toast({
+            description: `⚠️ Error loading ${err}`,
+          });
+        }).finally(() => {
+        setLoading(false);
+      })
     }
   };
 
@@ -359,21 +382,35 @@ function App() {
       }
     };
 
-  const load = async (mt: boolean = false) => {
-
+  const loadWasm = () => {
     setLoading(true);
-    const baseLib = FFMPEG_URL[mt ? "core_mt" : "core"];
+
+    loadFFmpeg().then(() => {;
+      setLoaded(true);
+      toast({
+        description: `🚀 Success loading ffmpeg core files`,
+      });
+    }).catch((err) => {
+      setProgress(0);
+      toast({
+        description: `⚠️ Failed to load converter: ${err}`,
+      })
+    }).finally(() => {
+      setLoading(false);
+    });
+  };
+
+  const loadFFmpeg = async (): Promise<boolean> => {
+    const ffmpeg = ffmpegRef.current;
+    ffmpeg.terminate();
+    const baseLib = FFMPEG_URL[isCoreMT ? "core_mt" : "core"];
     const setUrlProgress = ({ total: _total, received: _received }: {
       total: number;
       received: number;
     }) => {
       setProgress(Math.round((_received / (_total > 0 ? _total : baseLib.size)) * 100));
     };
-    const ffmpeg = ffmpegRef.current;
-    ffmpeg.terminate();
-
-    try {
-      await ffmpeg.load({
+    return ffmpeg.load({
         coreURL: await toBlobURL(
           `${baseLib.url}/ffmpeg-core.js`,
           "text/javascript",
@@ -384,26 +421,15 @@ function App() {
           true,
           setUrlProgress
         ),
-        workerURL: mt ? await toBlobURL(
+        workerURL: isCoreMT ? await toBlobURL(
           `${baseLib.url}/ffmpeg-core.worker.js`,
           "text/javascript",
         ) : "",
-      });
-      setLoaded(true);
-      toast({
-        description: `🚀 Success loading ffmpeg core files`,
-      });
-    } catch (err: any) {
-      toast({
-        description: `⚠️ Failed to load converter: ${err}`,
-      });
-      setProgress(0);
-    } finally {
-      setLoading(false);
-    }
-  };
+      })
+  }
 
   const transcode = async () => {
+    setLoading(true);
     localStorage.setItem('defaultDimension', JSON.stringify(maxDimensions));
     localStorage.setItem('keepAudio', keepAudio ? "true" : "false");
     localStorage.setItem('isCoreMT', isCoreMT ? "true" : "false");
@@ -417,7 +443,10 @@ function App() {
       toast({
       description: `🚀 Live photo stamp changed.`,
     });
-    } else ffexec({obj: null, arg: 0}, {obj: isExtractRaw === 2 ? convertedVideoUrl : videoFile, arg: 3})
+    } else {
+      setLoading(true);
+      ffexec({obj: null, arg: 0}, {obj: isExtractRaw === 2 ? convertedVideoUrl : videoFile, arg: 3})
+    }
   };
 
   const ffexec = async (img: { obj: BlobUrl | null; arg: number; }, film: { obj: BlobUrl | null; arg: number; }) => {
@@ -430,7 +459,6 @@ function App() {
       setLoading(false);
       return ffmpeg.terminate()
     };
-    setLoading(true);
 
     const argsHead = [
       "-v",
@@ -496,8 +524,7 @@ function App() {
         toast({
           description: `⚠️ Error transcoding image: ${e}, try to reload core`,
         });
-        await load(isCoreMT);
-        setLoading(true);
+        loadWasm();
       }
     }
     if (film.obj) {
@@ -573,6 +600,9 @@ function App() {
   }, [convertedImageUrl]);
 
   useEffect(() => {
+    if (videoRef.current && videoFile && videoRef.current.src !== videoFile.url) {
+      videoRef.current.src = videoFile.url;
+    }
     // revoke both videos if raw video updated
     return () => {
       if (videoFile) URL.revokeObjectURL(videoFile.url);
@@ -710,9 +740,11 @@ function App() {
                   </Badge>
                   <Badge variant="outline" className="rounded-l-none">
                     <ImageUpscale />
-                    {videoDimension ? `${videoDimension.width} x ${videoDimension.height}` : "??"}
+                    {videoDimension ? (<>{videoDimension.width} <span className="hidden md:inline">x </span>{videoDimension.height}</>) : "??"}
                     <ArrowRight {...(convertedVideoUrl && {color: "#3e9392"})} />
-                    {newVideoDimensions ? `${newVideoDimensions.width} x ${newVideoDimensions.height}` : "??"}
+                    <div className="text-end">
+                    {newVideoDimensions ? (<>{newVideoDimensions.width} <span className="hidden md:inline">x </span>{newVideoDimensions.height}</>) : "??"}
+                    </div>
                   </Badge>
                 </>
               )}
@@ -726,9 +758,11 @@ function App() {
                   </Badge>
                   <Badge variant="outline" className="rounded-l-none">
                     <ImageUpscale />
-                    {imageDimension ? `${imageDimension.width} x ${imageDimension.height}` : "??"}
+                    {imageDimension ? (<>{imageDimension.width} <span className="hidden md:inline">x </span>{imageDimension.height}</>) : "??"}
                     <ArrowRight {...(convertedImageUrl && {color: "#3e9392"})} />
-                    {newImageDimensions ? `${newImageDimensions.width} x ${newImageDimensions.height}` : "??"}
+                    <div className="text-end">
+                    {newImageDimensions ? (<>{newImageDimensions.width} <span className="hidden md:inline">x </span>{newImageDimensions.height}</>) : "??"}
+                    </div>
                   </Badge>
                 </>)
               }
@@ -906,7 +940,7 @@ function App() {
                   variant="outline"
                   size="sm"
                   disabled={loading}
-                  onClick={() => load(isCoreMT)}
+                  onClick={loadWasm}
                 >
                   {loading ? (
                     <>
@@ -965,14 +999,14 @@ function App() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="dropdown-content-width-full">
-                  {imageFile?.embed && (
+                  {imageFile?.type && (
                     <DropdownMenuItem onClick={() => handleDownload([imageFile])}>
-                        <Aperture />Extracted image
+                        <Aperture />{imageFile.type} image
                     </DropdownMenuItem>
                   )}
-                  {videoFile?.embed && (
+                  {videoFile?.type && (
                     <DropdownMenuItem onClick={() => handleDownload([videoFile])}>
-                        <Video />Extracted video
+                        <Video />{videoFile.type} video
                     </DropdownMenuItem>
                   )}
                   {convertedImageUrl && (
@@ -1191,8 +1225,8 @@ function App() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <UpOpt disabled={!imageFile} index={1} tar={isUpload} setter={setIsUpload}>{imageFile?.embed ? "Embed" : "Raw"} image</UpOpt>
-                      <UpOpt disabled={!videoFile} index={2} tar={isUpload} setter={setIsUpload}>{videoFile?.embed ? "Embed" : "Raw"} video</UpOpt>
+                      <UpOpt disabled={!imageFile} index={1} tar={isUpload} setter={setIsUpload}>{imageFile?.type ?? "Raw"} image</UpOpt>
+                      <UpOpt disabled={!videoFile} index={2} tar={isUpload} setter={setIsUpload}>{videoFile?.type ?? "Raw"} video</UpOpt>
                       {convertedImageUrl && (<UpOpt index={4} tar={isUpload} setter={setIsUpload}>Converted image</UpOpt>)}
                       {convertedVideoUrl && (<UpOpt index={8} tar={isUpload} setter={setIsUpload}>Converted video</UpOpt>)}
                     </DropdownMenuContent>
