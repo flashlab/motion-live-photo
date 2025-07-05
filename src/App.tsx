@@ -1,8 +1,8 @@
 import { ChangeEvent, ClipboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import {Accordion, AccordionContent, AccordionItem, AccordionTrigger} from "@/components/ui/accordion";
-import {TooltipProvider, Tooltip, TooltipContent, TooltipTrigger} from "@/components/mobile-tooltip";
-import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/mobile-tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SiteFooter } from "@/components/site-footer";
 import ModeToggle from "@/components/mode-toggle";
@@ -80,13 +80,14 @@ import {
 let fileWorker: Worker | null = null;
 
 function App() {
+  // TODO: split upload and convert state management.
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [logMessages, setLogMessages] = useState<string[]>([]);
   const [mediaTab, setMediaTab] = useState("video");
   const loadStorageJson = (key: string) => {
-    try { return JSON.parse(localStorage.getItem(key) ?? '') } catch(err) { return undefined }
+    try { return JSON.parse(localStorage.getItem(key) ?? '') } catch (err) { return undefined }
   };
 
   const [videoFile, setVideoFile] = useState<BlobUrl | null>(null);
@@ -114,7 +115,7 @@ function App() {
   const [endPointHeader, setEndPointHeader] = useState<RequestParam[]>(serverConfig?.at(0)?.headers ?? []);
   const [endPointHeaderKey, setEndPointHeaderKey] = useState<string>(endPointHeader?.at(0)?.key ?? "");
   const [endPointHeaderValue, setEndPointHeaderValue] = useState<string>(endPointHeader?.at(0)?.value ?? "");
-  const [endPointBody, setEndPointBody] = useState<RequestParam[]>(serverConfig?.at(0)?.bodys ?? [{key: "file", value: "{File}"}]);
+  const [endPointBody, setEndPointBody] = useState<RequestParam[]>(serverConfig?.at(0)?.bodys ?? [{ key: "file", value: "{File}" }]);
   const [endPointBodyKey, setEndPointBodyKey] = useState<string>(endPointBody?.at(0)?.key ?? "");
   const [endPointBodyValue, setEndPointBodyValue] = useState<string>(endPointBody?.at(0)?.value ?? "");
   const [usePost, setUsePost] = useState<boolean>(serverConfig?.at(0)?.post ?? false);
@@ -152,8 +153,15 @@ function App() {
         // heic to jpeg
         setLogMessages((prev) => [...prev, `📣 HEIC image detected, converting to JPEG...`]);
         import('heic-to').then(({ heicTo }) => {
-          heicTo({blob: file, type: 'image/jpeg', quality: 0.8}).then((blob) => {
-            setImageFile({url: URL.createObjectURL(blob), size: blob.size, ext: "jpg", name: name + "_heic", type: "Heic derived"});
+          // TODO: Customize Heic-to params.
+          heicTo({ blob: file, type: 'image/jpeg', quality: 0.8 }).then((blob) => {
+            setImageFile({
+              url: URL.createObjectURL(blob),
+              size: blob.size,
+              ext: "jpg",
+              name: file.name.replace(/\.[^.]+$/, '_heic'),
+              type: "Heic derived",
+            });
             setMediaTab("image");
             resolve("🚀 HEIC image converted to JPEG.")
           }).catch((err) => {
@@ -163,15 +171,15 @@ function App() {
       } else {
         if (!fileWorker) {
           // Initialize worker if not already done
-          fileWorker = new Worker(new URL('./lib/extractmotion.ts', import.meta.url), {type: "module"});
+          fileWorker = new Worker(new URL('./lib/extractmotion.ts', import.meta.url), { type: "module" });
         }
         fileWorker.onmessage = (e: MessageEvent) => {
           switch (e.data.type) {
             case "res":
               // motion photo
-              setImageFile({...e.data.image, name: file.name.replace(/\.[^.]+$/, '_embed')});
-              setVideoFile({...e.data.video, name: file.name.replace(/\.[^.]+$/, '_embed')});
-              setCaptureStamp(e.data.video.stamp/1000000);
+              setImageFile({ ...e.data.image, name: file.name.replace(/\.[^.]+$/, '_embed') });
+              setVideoFile({ ...e.data.video, name: file.name.replace(/\.[^.]+$/, '_embed') });
+              setCaptureStamp(e.data.video.stamp / 1000000);
               resolve("🚀 Motion photo loaded.");
               break;
             case "log":
@@ -209,9 +217,10 @@ function App() {
           const ffHW = ffHWline.match(/,\s(\d+)x(\d+),/);
           const isRotate = videoLogSlice.some((v) => /-90\.00\sdegrees/.test(v));
           if (ffHW)
-            setVideoDimension({width: ffHW[isRotate ? 2 : 1] as unknown as number,
-                              height: ffHW[isRotate ? 1 : 2] as unknown as number
-          });
+            setVideoDimension({
+              width: ffHW[isRotate ? 2 : 1] as unknown as number,
+              height: ffHW[isRotate ? 1 : 2] as unknown as number
+            });
         };
       };
     }
@@ -238,7 +247,7 @@ function App() {
 
   const onSetDimensions = (e: ChangeEvent<HTMLInputElement>, n: number) => {
     setMaxDimensions(
-      maxDimensions.map((c, i) => {return i === n ? e.target.value as unknown as number : c})
+      maxDimensions.map((c, i) => { return i === n ? e.target.value as unknown as number : c })
     )
   }
 
@@ -246,13 +255,13 @@ function App() {
     e.stopPropagation();
     const configs = serverConfig;
     if (!!endPoint) {
-      const newConfig = {url: endPoint, headers: endPointHeader, bodys: endPointBody, post: usePost};
+      const newConfig = { url: endPoint, headers: endPointHeader, bodys: endPointBody, post: usePost };
       const matchIndex = configs.findIndex(o => o.url === endPoint);
       if (matchIndex > -1) configs.splice(matchIndex, 1);
       configs.unshift(newConfig);
       setServerConfig(configs);
     }
-    
+
     localStorage.setItem('serverConfig', JSON.stringify(configs));
     return Promise.resolve();
   }
@@ -264,7 +273,7 @@ function App() {
     if (flag) {
       try {
         await navigator.clipboard.writeText(logContainer.textContent);
-      } catch(err) {
+      } catch (err) {
         toast({
           description: `⚠️ Error copy logs: ${err}`,
         });
@@ -288,12 +297,12 @@ function App() {
 
   const handleFileSelect = async (file: File) => {
     // get file name
-    const {name, ext} = parseFileName(file.name);
+    const { name, ext } = parseFileName(file.name);
     const mime = file.type;
     // console.log(mime);
     if (mime.startsWith("video/")) {
       const newfile = URL.createObjectURL(file);
-      setVideoFile({url: newfile, size: file.size, name: name, ext: ext});
+      setVideoFile({ url: newfile, size: file.size, name: name, ext: ext });
       setMediaTab("video");
       toast({
         description: "🚀 Video file loaded. ",
@@ -301,17 +310,17 @@ function App() {
     } else if (mime.startsWith("image/")) {
       setLoading(true);
       parseImageFile(file).then((msg) => {
-          toast({
-            description: msg,
-          });
-        }).catch((err) => {
-          // If not motion photo, load as image.
-          setImageFile({url: URL.createObjectURL(file), size: file.size, name: name, ext: ext});
-          setMediaTab("image");
-          toast({
-            description: `⚠️ Error loading ${err}`,
-          });
-        }).finally(() => {
+        toast({
+          description: msg,
+        });
+      }).catch((err) => {
+        // If not motion photo, load as image.
+        setImageFile({ url: URL.createObjectURL(file), size: file.size, name: name, ext: ext });
+        setMediaTab("image");
+        toast({
+          description: `⚠️ Error loading ${err}`,
+        });
+      }).finally(() => {
         setLoading(false);
       })
     }
@@ -321,7 +330,7 @@ function App() {
     let uploadCount = 0;
     setProgress(0);
     const uploadFile: (BlobUrl)[] = [imageFile, videoFile, convertedImageUrl, convertedVideoUrl].filter(
-      (o, i): o is BlobUrl => o !== null && (isUpload & (2**i)) !== 0
+      (o, i): o is BlobUrl => o !== null && (isUpload & (2 ** i)) !== 0
     );
     for (const media of uploadFile) {
       setLoading(true);
@@ -373,19 +382,20 @@ function App() {
     }
   };
 
-    const handlePasteFile = async (event: ClipboardEvent<HTMLInputElement>) => {
-      if (!inputRef.current) return;
-      if (event.clipboardData?.files) {
-        (inputRef.current as unknown as HTMLInputElement).files =
-          event.clipboardData.files;
-        inputRef.current.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    };
+  const handlePasteFile = async (event: ClipboardEvent<HTMLInputElement>) => {
+    if (!inputRef.current) return;
+    if (event.clipboardData?.files) {
+      (inputRef.current as unknown as HTMLInputElement).files =
+        event.clipboardData.files;
+      inputRef.current.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  };
 
   const loadWasm = () => {
     setLoading(true);
 
-    loadFFmpeg().then(() => {;
+    loadFFmpeg().then(() => {
+      ;
       setLoaded(true);
       toast({
         description: `🚀 Success loading ffmpeg core files`,
@@ -411,21 +421,21 @@ function App() {
       setProgress(Math.round((_received / (_total > 0 ? _total : baseLib.size)) * 100));
     };
     return ffmpeg.load({
-        coreURL: await toBlobURL(
-          `${baseLib.url}/ffmpeg-core.js`,
-          "text/javascript",
-        ),
-        wasmURL: await toBlobURL(
-          `${baseLib.url}/ffmpeg-core.wasm`,
-          "application/wasm",
-          true,
-          setUrlProgress
-        ),
-        workerURL: isCoreMT ? await toBlobURL(
-          `${baseLib.url}/ffmpeg-core.worker.js`,
-          "text/javascript",
-        ) : "",
-      })
+      coreURL: await toBlobURL(
+        `${baseLib.url}/ffmpeg-core.js`,
+        "text/javascript",
+      ),
+      wasmURL: await toBlobURL(
+        `${baseLib.url}/ffmpeg-core.wasm`,
+        "application/wasm",
+        true,
+        setUrlProgress
+      ),
+      workerURL: isCoreMT ? await toBlobURL(
+        `${baseLib.url}/ffmpeg-core.worker.js`,
+        "text/javascript",
+      ) : "",
+    })
   }
 
   const transcode = async () => {
@@ -433,19 +443,19 @@ function App() {
     localStorage.setItem('defaultDimension', JSON.stringify(maxDimensions));
     localStorage.setItem('keepAudio', keepAudio ? "true" : "false");
     localStorage.setItem('isCoreMT', isCoreMT ? "true" : "false");
-    ffexec({obj: (imageFile && (isConvert & 1) !== 0) ? imageFile : null, arg: 1},
-           {obj: (videoFile && (isConvert & 2) !== 0) ? videoFile : null, arg: 2});
+    ffexec({ obj: (imageFile && (isConvert & 1) !== 0) ? imageFile : null, arg: 1 },
+      { obj: (videoFile && (isConvert & 2) !== 0) ? videoFile : null, arg: 2 });
   };
-  
+
   const extractjpg = async () => {
     if (isExtractRaw) {
       setCaptureStamp(extractStamp);
       toast({
-      description: `🚀 Live photo stamp changed.`,
-    });
+        description: `🚀 Live photo stamp changed.`,
+      });
     } else {
       setLoading(true);
-      ffexec({obj: null, arg: 0}, {obj: isExtractRaw === 2 ? convertedVideoUrl : videoFile, arg: 3})
+      ffexec({ obj: null, arg: 0 }, { obj: isExtractRaw === 2 ? convertedVideoUrl : videoFile, arg: 3 })
     }
   };
 
@@ -466,37 +476,37 @@ function App() {
       "-y",
     ];
     const ffmpegArgs = [[
-          "-loglevel",
-          "quiet",
-          "-i",
-          "empty.webm",
-          "empty.mp4",
-        ], [
-          "-i",
-          `input.${img?.obj?.ext}`,
-          "-vf",
-          `scale=min(${maxDimensions?.at(0) || 99999}\\,iw):min(${maxDimensions?.at(1) || 99999}\\,ih):force_original_aspect_ratio=decrease`,
-          `output.${img?.obj?.ext}`,
-        ], [
-          ...beginStamp ? ["-ss", beginStamp.toFixed(3)] : [],
-          ...stopStamp ? ["-t", (stopStamp - beginStamp).toFixed(3)] : [],
-          "-i",
-          `input.${film?.obj?.ext}`,
-          ...["-vf", `scale=min(${maxDimensions?.at(2) || 99999}\\,iw):min(${maxDimensions?.at(3) || 99999}\\,ih):force_original_aspect_ratio=decrease`],
-          ...["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"],
-          ...keepAudio ? ["-acodec", "copy"] : ["-an"],
-          "output.mov",
-        ], [
-          "-ss",
-          extractStamp.toFixed(3),
-          "-i",
-          `input.${film?.obj?.ext}`,
-          "-frames:v",
-          "1",
-          "-update",
-          "1",
-          "extract.jpg",
-        ]]
+      "-loglevel",
+      "quiet",
+      "-i",
+      "empty.webm",
+      "empty.mp4",
+    ], [
+      "-i",
+      `input.${img?.obj?.ext}`,
+      "-vf",
+      `scale=min(${maxDimensions?.at(0) || 99999}\\,iw):min(${maxDimensions?.at(1) || 99999}\\,ih):force_original_aspect_ratio=decrease`,
+      `output.${img?.obj?.ext}`,
+    ], [
+      ...beginStamp ? ["-ss", beginStamp.toFixed(3)] : [],
+      ...stopStamp ? ["-t", (stopStamp - beginStamp).toFixed(3)] : [],
+      "-i",
+      `input.${film?.obj?.ext}`,
+      ...["-vf", `scale=min(${maxDimensions?.at(2) || 99999}\\,iw):min(${maxDimensions?.at(3) || 99999}\\,ih):force_original_aspect_ratio=decrease`],
+      ...["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"],
+      ...keepAudio ? ["-acodec", "copy"] : ["-an"],
+      "output.mov",
+    ], [
+      "-ss",
+      extractStamp.toFixed(3),
+      "-i",
+      `input.${film?.obj?.ext}`,
+      "-frames:v",
+      "1",
+      "-update",
+      "1",
+      "extract.jpg",
+    ]]
 
     // Listen to progress event instead of log.
     // progress event is experimental, be careful when using it
@@ -504,7 +514,7 @@ function App() {
     const logListener = ({ message, type }) => {
       setLogMessages((prev) => [...prev, message]);
     }
-    const progListener = ({ progress: prog }: {progress: number}) => {
+    const progListener = ({ progress: prog }: { progress: number }) => {
       setProgress(Math.round(Math.min(100, prog * 100)));
     }
     ffmpeg.on("progress", progListener);
@@ -519,7 +529,7 @@ function App() {
         const data = await ffmpeg.readFile(`output.${img.obj.ext}`);
         // TODO: determine image MIME.
         const imageBlob = new Blob([data], { type: "image/jpeg" });
-        setconvertedImageUrl({url: URL.createObjectURL(imageBlob), size: imageBlob.size, name: imageFile!.name+"_new", ext: img.obj.ext});
+        setconvertedImageUrl({ url: URL.createObjectURL(imageBlob), size: imageBlob.size, name: imageFile!.name + "_new", ext: img.obj.ext });
       } catch (e) {
         toast({
           description: `⚠️ Error transcoding image: ${e}, try to reload core`,
@@ -537,17 +547,17 @@ function App() {
           // pre excute with meaningless command to solve mp4-to-jpg error.
           await ffmpeg.exec(ffmpegArgs[0]);
           await ffmpeg.exec([...argsHead, ...ffmpegArgs[3]]);
-                    const data = await ffmpeg.readFile("extract.jpg");
+          const data = await ffmpeg.readFile("extract.jpg");
           const blob = new Blob([data], { type: "image/jpeg" });
           // force extract jpg filetype.
-          setImageFile({url: URL.createObjectURL(blob), size: blob.size, name: film.obj.name, ext: "jpg"});
+          setImageFile({ url: URL.createObjectURL(blob), size: blob.size, name: film.obj.name, ext: "jpg" });
           setCaptureStamp(extractStamp);
         } else {
           await ffmpeg.exec([...argsHead, ...ffmpegArgs[film.arg]]);
           const data = await ffmpeg.readFile("output.mov");
           const blob = new Blob([data], { type: "video/quicktime" });
           const newfile = URL.createObjectURL(blob);
-          setConvertedVideoUrl({url: newfile, size: blob.size, name: film.obj.name, ext: "mov"});
+          setConvertedVideoUrl({ url: newfile, size: blob.size, name: film.obj.name, ext: "mov" });
           // use converted video if raw video broken.
           if (videoRef.current && videoRef.current.readyState < HTMLMediaElement.HAVE_METADATA) videoRef.current.src = newfile;
         }
@@ -623,7 +633,7 @@ function App() {
         <CardHeader>
           <CardTitle className="flex justify-between items-center">
             <h2>📸 Motion photo Assistant</h2>
-          <ModeToggle />
+            <ModeToggle />
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 [&_.lucide]:w-4 [&_.lucide]:h-4">
@@ -697,7 +707,7 @@ function App() {
                 </TabsTrigger>
                 <TabsTrigger value="motion" disabled={!(videoFile && imageFile)}>
                   <code className="flex items-center gap-1">
-                  <LivePhotoIcon /> Live
+                    <LivePhotoIcon /> Live
                   </code>
                 </TabsTrigger>
               </TabsList>
@@ -713,10 +723,10 @@ function App() {
                 </TabsContent>
                 <TabsContent value="image" forceMount className="data-[state=inactive]:hidden">
                   <img
-                      ref={imgRef}
-                      src={imageFile?.url}
-                      onLoad={onLoadedImage}
-                    />
+                    ref={imgRef}
+                    src={imageFile?.url}
+                    onLoad={onLoadedImage}
+                  />
                 </TabsContent>
                 <TabsContent value="motion">
                   <LivePhoto
@@ -741,9 +751,9 @@ function App() {
                   <Badge variant="outline" className="rounded-l-none">
                     <ImageUpscale />
                     {videoDimension ? (<>{videoDimension.width} <span className="hidden md:inline">x </span>{videoDimension.height}</>) : "??"}
-                    <ArrowRight {...(convertedVideoUrl && {color: "#3e9392"})} />
+                    <ArrowRight {...(convertedVideoUrl && { color: "#3e9392" })} />
                     <div className="text-end">
-                    {newVideoDimensions ? (<>{newVideoDimensions.width} <span className="hidden md:inline">x </span>{newVideoDimensions.height}</>) : "??"}
+                      {newVideoDimensions ? (<>{newVideoDimensions.width} <span className="hidden md:inline">x </span>{newVideoDimensions.height}</>) : "??"}
                     </div>
                   </Badge>
                 </>
@@ -759,16 +769,16 @@ function App() {
                   <Badge variant="outline" className="rounded-l-none">
                     <ImageUpscale />
                     {imageDimension ? (<>{imageDimension.width} <span className="hidden md:inline">x </span>{imageDimension.height}</>) : "??"}
-                    <ArrowRight {...(convertedImageUrl && {color: "#3e9392"})} />
+                    <ArrowRight {...(convertedImageUrl && { color: "#3e9392" })} />
                     <div className="text-end">
-                    {newImageDimensions ? (<>{newImageDimensions.width} <span className="hidden md:inline">x </span>{newImageDimensions.height}</>) : "??"}
+                      {newImageDimensions ? (<>{newImageDimensions.width} <span className="hidden md:inline">x </span>{newImageDimensions.height}</>) : "??"}
                     </div>
                   </Badge>
                 </>)
               }
             </div>
 
-            <div className="flex justify-between *:flex *:items-end *:space-x-2">
+            <div className="flex justify-between *:flex *:items-center *:space-x-2">
               <div>
                 <Switch
                   checked={isCoreMT}
@@ -876,7 +886,7 @@ function App() {
 
                 <Popover onOpenChange={(open: boolean) => {
                   open && videoRef.current && setExtractStamp(videoRef.current.currentTime)
-                  }}
+                }}
                 >
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="icon" className="h-6"><Camera /></Button>
@@ -1001,22 +1011,22 @@ function App() {
                 <DropdownMenuContent className="dropdown-content-width-full">
                   {imageFile?.type && (
                     <DropdownMenuItem onClick={() => handleDownload([imageFile])}>
-                        <Aperture />{imageFile.type} image
+                      <Aperture />{imageFile.type} image
                     </DropdownMenuItem>
                   )}
                   {videoFile?.type && (
                     <DropdownMenuItem onClick={() => handleDownload([videoFile])}>
-                        <Video />{videoFile.type} video
+                      <Video />{videoFile.type} video
                     </DropdownMenuItem>
                   )}
                   {convertedImageUrl && (
                     <DropdownMenuItem onClick={() => handleDownload([convertedImageUrl])}>
-                        <FileImage />Converted image
+                      <FileImage />Converted image
                     </DropdownMenuItem>
                   )}
                   {convertedVideoUrl && (
                     <DropdownMenuItem onClick={() => handleDownload([convertedVideoUrl])}>
-                        <FileVideo2 />Converted video
+                      <FileVideo2 />Converted video
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -1029,220 +1039,220 @@ function App() {
 
             <Accordion type="single" collapsible className="mt-2">
               <AccordionItem value="upload">
-              <AccordionTrigger>
-                📤Fast Upload
-                <div className="flex ml-auto mr-2 items-center gap-2">
-                  <IconButton 
-                    onAction={handleSaveConfig}
-                    icon={SaveAll}
-                    actionLabel="Save"
-                    successLabel="Saved"
-                  />
-                </div>
-              </AccordionTrigger>
-              <AccordionContent>
-              <form
-                className="space-y-4 pt-2 pb-4 mx-2 [&_*]:text-xs"
-                onSubmit={(e) => {e.preventDefault();handleUpload()}}
-              >
-                <div className="flex justify-between items-center m-0">
-                  <label htmlFor="api-url">
-                    API URL
-                  </label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <CircleAlert size={16} />
-                      </TooltipTrigger>
-                      <TooltipContent>Use <code>{`{filename}`}</code> to represent file name in url</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <DropdownInput
-                  required
-                  id="api-url"
-                  value={endPoint}
-                  placeholder="https://api.abc.com/upload/{filename}" 
-                  options={serverConfig.map(({url}, i) => ({id: i, label: url}))}
-                  onDelete={(i) => setServerConfig(serverConfig.filter((_v, index) => index !== i))}
-                  onChange={(s) => setEndPoint(s)}
-                  onSelect={(o) => {
-                    setEndPoint(o.label);
-                    setEndPointHeader(serverConfig[o.id].headers ?? []);
-                    setEndPointBody(serverConfig[o.id].bodys ?? []);
-                    setUsePost(serverConfig[o.id].post ?? false);
-                  }}
-                />
-                <div className="flex justify-between items-center m-0">
-                  <label htmlFor="endpointheader">
-                    Request Header ({endPointHeader.length})
-                  </label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <CircleAlert size={16} />
-                      </TooltipTrigger>
-                      <TooltipContent><i>key:value</i> pairs<br/>storage locally in PLAINTEXT!</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <div className="flex items-center mb-2">
-                  <DropdownInput
-                    id="endpointheader"
-                    value={endPointHeaderKey}
-                    className="rounded-r-none"
-                    placeholder="Authorization"
-                    options={endPointHeader.map(({key}, i) => ({id: i, label: key}))}
-                    onDelete={(i) => setEndPointHeader(endPointHeader.filter((_v, index) => index !== i))}
-                    onChange={(s) => setEndPointHeaderKey(s)}
-                    onSelect={(o) => {
-                      setEndPointHeaderKey(o.label);
-                      setEndPointHeaderValue(endPointHeader[o.id].value);
-                    }}
-                  />
-                  <Input
-                  type="text"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck="false"
-                  autoCapitalize="none"
-                  placeholder="Bearer token123.."
-                  value={endPointHeaderValue}
-                  onChange={(e) => setEndPointHeaderValue(e.target.value)}
-                  className="rounded-none border-x-0 focus:border-x focus:z-99"
-                  />
-                  <Button
-                  variant="outline"
-                  type="button"
-                  className="px-2 rounded-l-none"
-                  onClick={() => {
-                    if (endPointHeaderKey && endPointHeaderValue) {
-                      setEndPointHeader([...endPointHeader, {key: endPointHeaderKey, value: endPointHeaderValue}]);
-                      setEndPointHeaderKey("");
-                      setEndPointHeaderValue("");
-                    }
-                  }}
-                  disabled={loading}
+                <AccordionTrigger>
+                  📤Fast Upload
+                  <div className="flex ml-auto mr-2 items-center gap-2">
+                    <IconButton
+                      onAction={handleSaveConfig}
+                      icon={SaveAll}
+                      actionLabel="Save"
+                      successLabel="Saved"
+                    />
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <form
+                    className="space-y-4 pt-2 pb-4 mx-2 [&_*]:text-xs"
+                    onSubmit={(e) => { e.preventDefault(); handleUpload() }}
                   >
-                  <Plus />
-                  </Button>
-                </div>
-                {usePost && (
-                  <>
                     <div className="flex justify-between items-center m-0">
-                      <label htmlFor="endpointheader">
-                        Request Body ({endPointBody.length})
+                      <label htmlFor="api-url">
+                        API URL
                       </label>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <CircleAlert size={16} />
                           </TooltipTrigger>
-                          <TooltipContent>use <code>{`{File}`}</code> to represent file.</TooltipContent>
+                          <TooltipContent>Use <code>{`{filename}`}</code> to represent file name in url</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <DropdownInput
+                      required
+                      id="api-url"
+                      value={endPoint}
+                      placeholder="https://api.abc.com/upload/{filename}"
+                      options={serverConfig.map(({ url }, i) => ({ id: i, label: url }))}
+                      onDelete={(i) => setServerConfig(serverConfig.filter((_v, index) => index !== i))}
+                      onChange={(s) => setEndPoint(s)}
+                      onSelect={(o) => {
+                        setEndPoint(o.label);
+                        setEndPointHeader(serverConfig[o.id].headers ?? []);
+                        setEndPointBody(serverConfig[o.id].bodys ?? []);
+                        setUsePost(serverConfig[o.id].post ?? false);
+                      }}
+                    />
+                    <div className="flex justify-between items-center m-0">
+                      <label htmlFor="endpointheader">
+                        Request Header ({endPointHeader.length})
+                      </label>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <CircleAlert size={16} />
+                          </TooltipTrigger>
+                          <TooltipContent><i>key:value</i> pairs<br />storage locally in PLAINTEXT!</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>
                     <div className="flex items-center mb-2">
                       <DropdownInput
                         id="endpointheader"
-                        value={endPointBodyKey}
+                        value={endPointHeaderKey}
                         className="rounded-r-none"
-                        placeholder="file"
-                        options={endPointBody.map(({key}, i) => ({id: i, label: key}))}
-                        onDelete={(i) => setEndPointBody(endPointBody.filter((_v, index) => index !== i))}
-                        onChange={(s) => setEndPointBodyKey(s)}
+                        placeholder="Authorization"
+                        options={endPointHeader.map(({ key }, i) => ({ id: i, label: key }))}
+                        onDelete={(i) => setEndPointHeader(endPointHeader.filter((_v, index) => index !== i))}
+                        onChange={(s) => setEndPointHeaderKey(s)}
                         onSelect={(o) => {
-                          setEndPointBodyKey(o.label);
-                          setEndPointBodyValue(endPointBody[o.id].value);
+                          setEndPointHeaderKey(o.label);
+                          setEndPointHeaderValue(endPointHeader[o.id].value);
                         }}
                       />
                       <Input
-                      type="text"
-                      autoComplete="off"
-                      autoCorrect="off"
-                      spellCheck="false"
-                      autoCapitalize="none"
-                      placeholder="Bearer token123.."
-                      value={endPointBodyValue}
-                      onChange={(e) => setEndPointBodyValue(e.target.value)}
-                      className="rounded-none border-x-0 focus:border-x focus:z-99"
+                        type="text"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck="false"
+                        autoCapitalize="none"
+                        placeholder="Bearer token123.."
+                        value={endPointHeaderValue}
+                        onChange={(e) => setEndPointHeaderValue(e.target.value)}
+                        className="rounded-none border-x-0 focus:border-x focus:z-99"
                       />
                       <Button
-                      variant="outline"
-                      type="button"
-                      className="px-2 rounded-l-none"
-                      onClick={() => {
-                        if (endPointBodyKey && endPointBodyValue) {
-                          setEndPointBody([...endPointBody, {key: endPointBodyKey, value: endPointBodyValue}]);
-                          setEndPointBodyKey("");
-                          setEndPointBodyValue("");
-                        }
-                      }}
-                      disabled={loading}
+                        variant="outline"
+                        type="button"
+                        className="px-2 rounded-l-none"
+                        onClick={() => {
+                          if (endPointHeaderKey && endPointHeaderValue) {
+                            setEndPointHeader([...endPointHeader, { key: endPointHeaderKey, value: endPointHeaderValue }]);
+                            setEndPointHeaderKey("");
+                            setEndPointHeaderValue("");
+                          }
+                        }}
+                        disabled={loading}
                       >
-                      <Plus />
+                        <Plus />
                       </Button>
                     </div>
-                  </>
-                )}
-                <div className="flex items-center justify-start min-h-10 space-x-2">
-                  <Switch
-                    id="upload-method-switch"
-                    checked={usePost}
-                    onCheckedChange={(checked) => { setUsePost(checked) }}
-                    disabled={loading}
-                  />
-                  <label htmlFor="upload-method-switch">
-                    {usePost ? "POST" : "PUT"} METHOD
-                  </label>
-                </div>
+                    {usePost && (
+                      <>
+                        <div className="flex justify-between items-center m-0">
+                          <label htmlFor="endpointheader">
+                            Request Body ({endPointBody.length})
+                          </label>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <CircleAlert size={16} />
+                              </TooltipTrigger>
+                              <TooltipContent>use <code>{`{File}`}</code> to represent file.</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <div className="flex items-center mb-2">
+                          <DropdownInput
+                            id="endpointheader"
+                            value={endPointBodyKey}
+                            className="rounded-r-none"
+                            placeholder="file"
+                            options={endPointBody.map(({ key }, i) => ({ id: i, label: key }))}
+                            onDelete={(i) => setEndPointBody(endPointBody.filter((_v, index) => index !== i))}
+                            onChange={(s) => setEndPointBodyKey(s)}
+                            onSelect={(o) => {
+                              setEndPointBodyKey(o.label);
+                              setEndPointBodyValue(endPointBody[o.id].value);
+                            }}
+                          />
+                          <Input
+                            type="text"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck="false"
+                            autoCapitalize="none"
+                            placeholder="Bearer token123.."
+                            value={endPointBodyValue}
+                            onChange={(e) => setEndPointBodyValue(e.target.value)}
+                            className="rounded-none border-x-0 focus:border-x focus:z-99"
+                          />
+                          <Button
+                            variant="outline"
+                            type="button"
+                            className="px-2 rounded-l-none"
+                            onClick={() => {
+                              if (endPointBodyKey && endPointBodyValue) {
+                                setEndPointBody([...endPointBody, { key: endPointBodyKey, value: endPointBodyValue }]);
+                                setEndPointBodyKey("");
+                                setEndPointBodyValue("");
+                              }
+                            }}
+                            disabled={loading}
+                          >
+                            <Plus />
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                    <div className="flex items-center justify-start min-h-10 space-x-2">
+                      <Switch
+                        id="upload-method-switch"
+                        checked={usePost}
+                        onCheckedChange={(checked) => { setUsePost(checked) }}
+                        disabled={loading}
+                      />
+                      <label htmlFor="upload-method-switch">
+                        {usePost ? "POST" : "PUT"} METHOD
+                      </label>
+                    </div>
 
-                <div className="flex w-full">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    type="submit"
-                    className="flex-1 rounded-r-none"
-                    disabled={loading || !isFileSelect}
-                  >
-                  {loading ? (
-                    <>
-                      <UploadIcon className="mr-1 h-4 w-4 animate-pulse" />
-                      {/* TODO: Manually abort uploading. */}
-                      Processing..
-                    </>
-                  ) : (
-                    <>
-                      <UploadIcon className="mr-1 h-4 w-4" />
-                      Upload
-                    </>
-                  )}
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className={'rounded-l-none border-l-0 px-2'} disabled={loading || !isFileSelect}>
-                        <ChevronDown />
+                    <div className="flex w-full">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="submit"
+                        className="flex-1 rounded-r-none"
+                        disabled={loading || !isFileSelect}
+                      >
+                        {loading ? (
+                          <>
+                            <UploadIcon className="mr-1 h-4 w-4 animate-pulse" />
+                            {/* TODO: Manually abort uploading. */}
+                            Processing..
+                          </>
+                        ) : (
+                          <>
+                            <UploadIcon className="mr-1 h-4 w-4" />
+                            Upload
+                          </>
+                        )}
                       </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <UpOpt disabled={!imageFile} index={1} tar={isUpload} setter={setIsUpload}>{imageFile?.type ?? "Raw"} image</UpOpt>
-                      <UpOpt disabled={!videoFile} index={2} tar={isUpload} setter={setIsUpload}>{videoFile?.type ?? "Raw"} video</UpOpt>
-                      {convertedImageUrl && (<UpOpt index={4} tar={isUpload} setter={setIsUpload}>Converted image</UpOpt>)}
-                      {convertedVideoUrl && (<UpOpt index={8} tar={isUpload} setter={setIsUpload}>Converted video</UpOpt>)}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </form>
-              </AccordionContent>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className={'rounded-l-none border-l-0 px-2'} disabled={loading || !isFileSelect}>
+                            <ChevronDown />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <UpOpt disabled={!imageFile} index={1} tar={isUpload} setter={setIsUpload}>{imageFile?.type ?? "Raw"} image</UpOpt>
+                          <UpOpt disabled={!videoFile} index={2} tar={isUpload} setter={setIsUpload}>{videoFile?.type ?? "Raw"} video</UpOpt>
+                          {convertedImageUrl && (<UpOpt index={4} tar={isUpload} setter={setIsUpload}>Converted image</UpOpt>)}
+                          {convertedVideoUrl && (<UpOpt index={8} tar={isUpload} setter={setIsUpload}>Converted video</UpOpt>)}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </form>
+                </AccordionContent>
               </AccordionItem>
               <AccordionItem value="log">
                 <AccordionTrigger>
                   📜Realtime Logs
                   <div className="flex ml-auto mr-2 items-center gap-2">
                     <Trash2 size={16} role="button"
-                      onClick={(e) => {handleLog(e, false)}}
+                      onClick={(e) => { handleLog(e, false) }}
                     />
-                    <IconButton 
+                    <IconButton
                       onAction={handleLog}
                       actionParams={true}
                       actionLabel="Copy"

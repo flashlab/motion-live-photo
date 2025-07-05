@@ -20,7 +20,8 @@ You can find deployed version at the URL below:
 
 # Todo
 - [x] highlight selected file type.
-- [ ] HEVC/HEIF and AVIF support.
+- [x] HEVC/HEIF and AVIF support.
+- [ ] Customize Heic-to params.
 - [ ] split upload and convert state management.
 - [ ] determine image MIME.
 - [ ] Manually abort uploading.
