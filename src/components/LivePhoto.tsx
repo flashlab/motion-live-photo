@@ -11,7 +11,8 @@ declare global {
   }
 }
 
-export function LivePhoto({ url, videoUrl, stamp, className }: { url?: string; videoUrl?: string; stamp?: number; className?: string }) {
+export function LivePhoto({ url, videoUrl, stamp, className, aspectRatio }:
+  { url?: string; videoUrl?: string; stamp?: number; className?: string, aspectRatio:number }) {
   const livePhotoRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -32,8 +33,8 @@ export function LivePhoto({ url, videoUrl, stamp, className }: { url?: string; v
   }, [livePhotoRef, url, videoUrl])
 
   return (
-      <div ref={livePhotoRef} className={
-        cn(className, "relative w-full object-contain h-100")
+      <div ref={livePhotoRef} style={{ aspectRatio: aspectRatio }} className={
+        cn(className, "relative w-full object-contain")
       } >
         {!window.LivePhotosKit && (<Loader className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin" />)}
       </div>

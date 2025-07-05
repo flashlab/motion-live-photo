@@ -180,6 +180,7 @@ function App() {
               setImageFile({ ...e.data.image, name: file.name.replace(/\.[^.]+$/, '_embed') });
               setVideoFile({ ...e.data.video, name: file.name.replace(/\.[^.]+$/, '_embed') });
               setCaptureStamp(e.data.video.stamp / 1000000);
+              setMediaTab("video");
               resolve("🚀 Motion photo loaded.");
               break;
             case "log":
@@ -711,7 +712,7 @@ function App() {
                   </code>
                 </TabsTrigger>
               </TabsList>
-              <div className="mt-1 rounded-md">
+              <div className="mt-1">
                 <TabsContent value="video" forceMount className="data-[state=inactive]:hidden">
                   <video
                     ref={videoRef}
@@ -726,6 +727,7 @@ function App() {
                     ref={imgRef}
                     src={imageFile?.url}
                     onLoad={onLoadedImage}
+                    className="max-h-screen mx-auto"
                   />
                 </TabsContent>
                 <TabsContent value="motion">
@@ -733,6 +735,8 @@ function App() {
                     url={convertedImageUrl?.url ?? imageFile?.url}
                     videoUrl={convertedVideoUrl?.url ?? videoFile?.url}
                     stamp={captureStamp}
+                    aspectRatio={imageDimension ? imageDimension.width / imageDimension.height : 16 / 9}
+                    className="max-h-screen mx-auto"
                   />
                 </TabsContent>
               </div>
