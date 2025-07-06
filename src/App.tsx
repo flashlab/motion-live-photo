@@ -1,4 +1,5 @@
 import { ChangeEvent, ClipboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useDropzone } from "react-dropzone";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/mobile-tooltip";
@@ -75,6 +76,7 @@ import {
   FlagTriangleLeft,
   FlagTriangleRight,
   Plus,
+  Languages,
 } from "lucide-react";
 
 let fileWorker: Worker | null = null;
@@ -134,6 +136,8 @@ function App() {
   const [isConvert, setIsConvert] = useState(3);
   const [isUpload, setIsUpload] = useState(12);
   const [isExtractRaw, setisExtractRaw] = useState(1);
+  const { t, i18n: {changeLanguage, language} } = useTranslation();
+  const [currLang, setCurrLang] = useState(language)
   const { toast } = useToast();
   const { getRootProps, getInputProps, open, isDragActive, isDragAccept, inputRef } = useDropzone({
     onDrop: (files) => files[0] && handleFileSelect(files[0]),
@@ -160,10 +164,10 @@ function App() {
               size: blob.size,
               ext: "jpg",
               name: file.name.replace(/\.[^.]+$/, '_heic'),
-              type: "Heic derived",
+              type: t('option.heicDerived'),
             });
             setMediaTab("image");
-            resolve("🚀 HEIC image converted to JPEG.")
+            resolve(t('toast.heicDone'))
           }).catch((err) => {
             reject(`HEIC image: ${err}`);
           });
@@ -181,7 +185,7 @@ function App() {
               setVideoFile({ ...e.data.video, name: file.name.replace(/\.[^.]+$/, '_embed') });
               setCaptureStamp(e.data.video.stamp / 1000000);
               setMediaTab("video");
-              resolve("🚀 Motion photo loaded.");
+              resolve(t('toast.motionLoad'));
               break;
             case "log":
               setLogMessages((prev) => [...prev, e.data.msg]);
@@ -284,6 +288,11 @@ function App() {
     return Promise.resolve();
   };
 
+  const handleI18n = () => {
+    const newLang = currLang === "en" ? "zh" : "en";
+    setCurrLang(newLang);
+    changeLanguage(newLang);
+  }
   const handleDownload = (quene: Array<BlobUrl | null>): void => {
     for (const media of quene) {
       if (!media) continue;
@@ -632,8 +641,12 @@ function App() {
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
       <Card className="max-w-full md:max-w-[700px] mx-auto md:p-2 my-4">
         <CardHeader>
-          <CardTitle className="flex justify-between items-center">
-            <h2>📸 Motion photo Assistant</h2>
+          <CardTitle className="flex items-center">
+            <h2 className="flex-1">📸 {t('title.head')}</h2>
+            <Button variant="outline" size="icon" onClick={handleI18n} className="rounded-r-none border-r-0">
+              <Languages className="h-[1.2rem] w-[1.2rem]" />
+              <span className="sr-only">Toggle language</span>
+            </Button>
             <ModeToggle />
           </CardTitle>
         </CardHeader>
@@ -641,13 +654,13 @@ function App() {
           <>
             <div
               {...getRootProps()}
-              className={`border-2 border-dashed rounded-md p-4 flex flex-col items-center justify-center`}
+              className="border-2 border-dashed rounded-md p-4 flex flex-col items-center justify-center bg-origin-border -bg-linear-28 from-(--color-input) from-0% from-(--color-input) from-42% to-(--color-background) to-42% to-(--color-background) to-42%]"
               onPaste={handlePasteFile}
             >
               <input {...getInputProps()} />
               <p className="text-sm text-center">
-                {!isDragActive && "Drag/paste here, or click to load files"}
-                {isDragAccept && "Auto detect motion photo.."}
+                {!isDragActive && t('input.title')}
+                {isDragAccept && t('input.drag')}
               </p>
               <Button
                 variant="outline"
@@ -664,7 +677,7 @@ function App() {
                 ) : (
                   <>
                     <Upload className="h-4 w-4" />
-                    Select Media
+                    {t('input.select')}
                   </>
                 )}
               </Button>
@@ -672,23 +685,23 @@ function App() {
                 {videoTypes.map((type) => (
                   <Badge
                     key={type}
-                    variant={type === videoFile?.ext ? "default" : "outline"}
+                    className={type === videoFile?.ext ? undefined : "bg-(--color-input) text-(--color-foreground)"}
                   >
                     {type}
                   </Badge>
                 ))}
-                <Badge variant={videoFile && !videoTypes.includes(videoFile.ext) ? "default" : "outline"}>
+                <Badge className={videoFile && !videoTypes.includes(videoFile.ext) ? undefined : "bg-(--color-input) text-(--color-foreground)"}>
                   {(videoFile && !videoTypes.includes(videoFile.ext)) ? videoFile.ext : '..'}
                 </Badge>
                 {imageTypes.map((type) => (
                   <Badge
                     key={type}
-                    variant={type === imageFile?.ext ? "default" : "secondary"}
+                    className={type === imageFile?.ext ? undefined : "bg-(--color-background) text-(--color-foreground)"}
                   >
                     {type}
                   </Badge>
                 ))}
-                <Badge variant={imageFile && !imageTypes.includes(imageFile.ext) ? "default" : "secondary"}>
+                <Badge className={imageFile && !imageTypes.includes(imageFile.ext) ? undefined : "bg-(--color-background) text-(--color-foreground)"}>
                   {(imageFile && !imageTypes.includes(imageFile.ext)) ? imageFile.ext : '..'}
                 </Badge>
               </div>
@@ -797,7 +810,7 @@ function App() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <label className="text-xs inline-flex">
-                        Multithread <CircleAlert className="ml-1" />
+                        {t('label.multithread')} <CircleAlert className="ml-1" />
                       </label>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -964,7 +977,7 @@ function App() {
                   ) : (
                     <>
                       <Route className="h-4 w-4" />
-                      Load wasm (~{humanFileSize(FFMPEG_URL[isCoreMT ? "core_mt" : "core"].size, false, 0)})
+                      {t('btn.wasm')} (~{humanFileSize(FFMPEG_URL[isCoreMT ? "core_mt" : "core"].size, false, 0)})
                     </>
                   )}
                 </Button>
@@ -1044,7 +1057,7 @@ function App() {
             <Accordion type="single" collapsible className="mt-2">
               <AccordionItem value="upload">
                 <AccordionTrigger>
-                  📤Fast Upload
+                  📤{t('title.upload')}
                   <div className="flex ml-auto mr-2 items-center gap-2">
                     <IconButton
                       onAction={handleSaveConfig}
@@ -1251,7 +1264,7 @@ function App() {
               </AccordionItem>
               <AccordionItem value="log">
                 <AccordionTrigger>
-                  📜Realtime Logs
+                  📜{t('title.log')}
                   <div className="flex ml-auto mr-2 items-center gap-2">
                     <Trash2 size={16} role="button"
                       onClick={(e) => { handleLog(e, false) }}

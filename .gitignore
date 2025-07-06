@@ -2,5 +2,4 @@ node_modules
 dist
 dist-ssr
 *.local
-stats.html
 bun.lock

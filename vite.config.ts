@@ -3,7 +3,7 @@ import path from "path";
 //import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
 import eslintPlugin from 'vite-plugin-eslint';
-import { visualizer } from 'rollup-plugin-visualizer';
+import { analyzer } from 'vite-bundle-analyzer';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -18,8 +18,8 @@ export default defineConfig({
       include: ['./src//*.js', './src//*.jsx'],
       exclude: [],
     }),
-    visualizer({
-     open: true, // Opens the report in the browser
+    analyzer({
+      exclude: ['**/heic-to.js', '**/livephotoskit*.js'],
     }),
   ],
   optimizeDeps: {

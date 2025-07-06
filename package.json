@@ -47,6 +47,8 @@
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.5.2",
     "heic-to": "^1.2.1",
+    "i18next": "^25.3.1",
+    "i18next-browser-languagedetector": "^8.2.0",
     "input-otp": "^1.4.2",
     "livephotoskit": "^1.5.6",
     "lucide-react": "^0.484.0",
@@ -57,9 +59,9 @@
     "react-dom": "^19.1.0",
     "react-dropzone": "^14.3.8",
     "react-hook-form": "^7.55.0",
+    "react-i18next": "^15.6.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.1",
-    "rollup-plugin-visualizer": "^6.0.3",
     "sonner": "^2.0.2",
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
@@ -84,7 +86,7 @@
     "tailwindcss": "^4.0.17",
     "typescript": "^5.8.2",
     "vite": "^6.2.3",
-    "vite-plugin-eslint": "^1.8.1",
-    "webpack-bundle-analyzer": "^4.10.2"
+    "vite-bundle-analyzer": "^1.0.0",
+    "vite-plugin-eslint": "^1.8.1"
   }
 }
