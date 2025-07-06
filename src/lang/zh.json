@@ -1,0 +1,24 @@
+{
+  "translation": {
+    "input": {
+      "title": "拖入/粘贴照片视频，或点击选择",
+      "drag": "自动判断 heif / 实况照片",
+      "select": "选择文件"
+    },
+    "toast": {},
+    "btn": {
+      "wasm": "加载核心"
+    },
+    "title": {
+      "upload": "快速上传",
+      "head": "实况照片 web 助手",
+      "log": "实时日志"
+    },
+    "label": {
+      "multithread": "多线程"
+    },
+    "option": {
+      "heicDerived": "转自 Heic 的"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "translation": {
+    "input": {
+      "title": "Drag/paste here, or click to load files",
+      "drag": "Auto detect motion photo..",
+      "select": "Select Media"
+    },
+    "toast": {
+      "heicDone": "🚀 HEIC image converted to JPEG.",
+      "motionLoad": "🚀 Motion photo loaded."
+    },
+    "btn": {
+      "wasm": "Load wasm"
+    },
+    "title": {
+      "upload": "Fast Upload",
+      "head": "Motion photo Assistant",
+      "log": "Realtime Logs"
+    },
+    "label": {
+      "multithread": "Multithread"
+    },
+    "option": {
+      "heicDerived": "Heic derived"
+    }
+  }
+}
