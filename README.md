@@ -1,18 +1,20 @@
-# Motion Photo mp4 to Live Photo Converter for web hosting
+# Motion Photo and Live Photo workflow on browser
 
-A simple web app that converted and compressed motion photo (.jpg file from android/xiaomi/oppo) to live photo (.jpg and .mov file from ios) using ffmpeg wasm. Or you can preview any image/video pair as live photo on your browser with the aid of [LivePhotosKit JS](https://developer.apple.com/documentation/livephotoskitjs). Any PRs are welcomed.
+A SPA online tool that converted and compressed motion photos for web scenario. Or you can preview any image/video (e.g. jpg/mp4) pair as live photo on your browser with the aid of [LivePhotosKit JS](https://developer.apple.com/documentation/livephotoskitjs). Any PRs are welcomed.
 
 Main features:
 
-1. Recognition and comvert motion photo like image files.
-2. Reduce media resolutions and keep ratio on browser.
-3. Download extracted and converted media files.
-4. Upload files.
+1. Recognition and preview motion photo series image files (google/xiaomi/oppo).
+2. Convert or Reduce media (pixel, cut, mute..) by ffmpeg wasm (single/multithread).
+3. Take snapshot of video as static image of motion photo and custom presentation timestamp.
+4. Recreate motion photo jpg file from above with ability to custom XMP meta.
+4. Download, and Upload with flexible API of all above .
 5. Realtime logs.
 6. Save configs locally.
 7. Heic/heif image supported.
+8. Multi-language and dark theme.
 
-The UI was build on the basis of [video-dark2light-ffmpeg](https://github.com/The-Best-Codes/video-dark2light-ffmpeg) created by [BestCodes](https://bestcodes.dev). The motion photo split algorithm was derived from [https://motion-photo-parser.site.0to1.cf](https://motion-photo-parser.site.0to1.cf/). Heic/heif file compatibility drived by [heic-to](https://github.com/hoppergee/heic-to).
+The UI was build on the basis of [video-dark2light-ffmpeg](https://github.com/The-Best-Codes/video-dark2light-ffmpeg) created by [BestCodes](https://bestcodes.dev). The motion photo parse and generate algorithm was derived from [https://motion-photo-parser.site.0to1.cf](https://motion-photo-parser.site.0to1.cf/). Heic/heif file compatibility drived by [heic-to](https://github.com/hoppergee/heic-to).
 
 You can find deployed version at the URL below:
 
@@ -21,11 +23,14 @@ You can find deployed version at the URL below:
 # Todo
 - [x] highlight selected file type.
 - [x] HEVC/HEIF and AVIF support.
+- [x] Customize uploaded file name.
+- [x] Generate motion photo.
+- [x] Split upload and convert state management.
 - [ ] Customize Heic-to params.
-- [ ] split upload and convert state management.
-- [ ] determine image MIME.
+- [ ] Determine image MIME.
 - [ ] Manually abort uploading.
-- [ ] Customize uploaded file name.
+- [ ] Converted image file type option.
+
 
 # Compare jpg compress quality
 

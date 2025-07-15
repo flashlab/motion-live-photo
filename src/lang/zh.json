@@ -1,24 +1,43 @@
 {
-  "translation": {
-    "input": {
-      "title": "拖入/粘贴照片视频，或点击选择",
-      "drag": "自动判断 heif / 实况照片",
-      "select": "选择文件"
+  "input": {
+    "title": "拖入/粘贴照片视频，或点击选择",
+    "drag": "自动判断 heif / 实况照片",
+    "select": "选择文件"
+  },
+  "toast": {
+    "err": {
+      "copyLogs": "⚠️ 无法复制到剪切板：",
+      "load": "⚠️ 无法加载"
     },
-    "toast": {},
-    "btn": {
-      "wasm": "加载核心"
-    },
-    "title": {
-      "upload": "快速上传",
-      "head": "实况照片 web 助手",
-      "log": "实时日志"
-    },
-    "label": {
-      "multithread": "多线程"
-    },
-    "option": {
-      "heicDerived": "转自 Heic 的"
-    }
+    "videoLoad": "视频文件已加载。",
+    "upload": "🚀 已上传："
+  },
+  "btn": {
+    "wasm": "加载核心",
+    "dl": "下载/改名",
+    "createMotion": "生成动态照片"
+  },
+  "title": {
+    "upload": "快速上传",
+    "head": "实况照片 web 助手",
+    "log": "实时日志",
+    "motion": "生成动态照片（beta）"
+  },
+  "label": {
+    "multithread": "多线程",
+    "video": "视频",
+    "image": "照片",
+    "live": "实况"
+  },
+  "option": {
+    "heicDerived": "转自 Heic 的",
+    "light": "浅色",
+    "dark": "暗色",
+    "system": "跟随系统",
+    "embed": "提取的"
+  },
+  "tips": {
+    "imagePrior": "图片优先级： 原始动态 > 转换的 > 原始的",
+    "videoPrior": "视频优先级：转换的 > 原始的"
   }
 }

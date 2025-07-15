@@ -9,9 +9,12 @@ i18n.use(LanguageDetector).use(initReactI18next).init({
   interpolation: {
     escapeValue: false, 
   },
-  resources: {
-    en: { ...enJSON },
-    zh: { ...zhJSON },
+  detection: {
+    order: ['path', 'cookie', 'localStorage', 'navigator'],
+    caches: ['cookie', 'localStorage'],
   },
-  lng: "en",
+  resources: {
+    en: { translation:{ ...enJSON } },
+    zh: { translation:{ ...zhJSON } },
+  },
 });

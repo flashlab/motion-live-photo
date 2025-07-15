@@ -1,27 +1,51 @@
 {
-  "translation": {
-    "input": {
-      "title": "Drag/paste here, or click to load files",
-      "drag": "Auto detect motion photo..",
-      "select": "Select Media"
+  "input": {
+    "title": "Drag/paste here, or click to load files",
+    "drag": "Auto detect motion photo..",
+    "select": "Select Media"
+  },
+  "toast": {
+    "heicDone": "🚀 HEIC image converted to JPEG.",
+    "motionLoad": "🚀 Motion photo loaded.",
+    "err": {
+      "copyLogs": "⚠️ Error copy logs: ",
+      "load": "⚠️ Error load "
     },
-    "toast": {
-      "heicDone": "🚀 HEIC image converted to JPEG.",
-      "motionLoad": "🚀 Motion photo loaded."
-    },
-    "btn": {
-      "wasm": "Load wasm"
-    },
-    "title": {
-      "upload": "Fast Upload",
-      "head": "Motion photo Assistant",
-      "log": "Realtime Logs"
-    },
-    "label": {
-      "multithread": "Multithread"
-    },
-    "option": {
-      "heicDerived": "Heic derived"
-    }
+    "videoLoad": "🚀 Video file loaded.",
+    "upload": "🚀 Uploaded: ",
+    "renamed": "🚀 Success renamed:"
+  },
+  "btn": {
+    "wasm": "Load wasm",
+    "dl": "Download/Rename",
+    "createMotion": "Create Motion Photo"
+  },
+  "title": {
+    "upload": "Fast Upload",
+    "head": "Motion photo Assistant",
+    "log": "Realtime Logs",
+    "rename": "Rename",
+    "motion": "Motion photo Mux (Beta)"
+  },
+  "label": {
+    "multithread": "Multithread",
+    "video": "video",
+    "image": "image",
+    "live": "live"
+  },
+  "option": {
+    "heicDerived": "Heic derived",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "embed": "Embed",
+    "converted": "Converted",
+    "raw": "Raw",
+    "snapshot": "Snapshot",
+    "unknown": "Unknown"
+  },
+  "tips": {
+    "imagePrior": "Image priority: raw motion > converted > raw",
+    "videoPrior": "Video priority: converted > raw"
   }
 }
