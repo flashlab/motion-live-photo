@@ -201,7 +201,7 @@ const createMotion = async (data: any) => {
       const extraXmpLength = data.hasExtraXmp ? updatedXmpArray.length : 0;
       const updatedFileArray = new Uint8Array(videoStart + newVideoArray.length - xmpEnd + xmpStart + updatedXmpArray.length - extraXmpEnd + extraXmpStart + extraXmpLength);
       let raw_app1 = originalArray.slice(0, xmpStart)
-      // 修正包含XMP的APP1字段头部长度标识 Fix header length mark of APP1 field refer to XMP.
+      // Fix header length mark of APP1 field refer to XMP.
       const searchPattern = [0xFF, 0xE1];
       let app1_start = findPatternInUint8ArrayReverse(raw_app1, searchPattern);
       if (app1_start === -1) {
@@ -217,7 +217,7 @@ const createMotion = async (data: any) => {
       updatedFileArray.set(updatedXmpArray, xmpStart);
       if (data.hasExtraXmp) {
           // Deal with the second XMP dup in case of Xiaomi
-          console.log(extraXmpStart, extraXmpEnd);
+          // console.log(extraXmpStart, extraXmpEnd);
           raw_app1 = originalArray.slice(xmpEnd, extraXmpStart)
           app1_start = findPatternInUint8ArrayReverse(raw_app1, searchPattern);
           const originalLength = (raw_app1[app1_start + 2] << 8) | raw_app1[app1_start + 3];
@@ -234,7 +234,7 @@ const createMotion = async (data: any) => {
           updatedFileArray.set(newVideoArray, videoStart - xmpEnd + xmpStart + updatedXmpArray.length);
       }
       resolve({
-        file: new File([updatedFileArray], data.name.replace(/(\.[^.]+)?$/, "_new.jpg"), { type: "image/jpeg" }),
+        file: new File([updatedFileArray], data.image.name.replace(/(\.[^.]+)?$/, "_live.jpg"), { type: "image/jpeg" }),
         type: "res"
       });
     };

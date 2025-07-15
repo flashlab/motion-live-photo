@@ -1,15 +1,17 @@
 {
   "input": {
-    "title": "Drag/paste here, or click to load files",
-    "drag": "Auto detect motion photo..",
-    "select": "Select Media"
+    "title": "Drag/paste here, or click to import",
+    "dragAccept": "Auto detect motion photo..",
+    "select": "Select Media",
+    "dragReject": "⚠️ Unsupported file, image/video only"
   },
   "toast": {
     "heicDone": "🚀 HEIC image converted to JPEG.",
     "motionLoad": "🚀 Motion photo loaded.",
     "err": {
       "copyLogs": "⚠️ Error copy logs: ",
-      "load": "⚠️ Error load "
+      "load": "⚠️ Error parse ",
+      "checkLogs": ", Check logs for details."
     },
     "videoLoad": "🚀 Video file loaded.",
     "upload": "🚀 Uploaded: ",
@@ -18,20 +20,29 @@
   "btn": {
     "wasm": "Load wasm",
     "dl": "Download/Rename",
-    "createMotion": "Create Motion Photo"
+    "upload": "Upload",
+    "createMotion": "Create Motion Photo",
+    "noUpload": "select on drop menu",
+    "snapshot": "Snapshot"
   },
   "title": {
     "upload": "Fast Upload",
-    "head": "Motion photo Assistant",
+    "head": "Live photo Assistant",
     "log": "Realtime Logs",
     "rename": "Rename",
-    "motion": "Motion photo Mux (Beta)"
+    "motion": "Motion photo Mux (Beta)",
+    "videoSet": "Video setting",
+    "scale": "Scale",
+    "snapshot": "Snapshot"
   },
   "label": {
     "multithread": "Multithread",
     "video": "video",
     "image": "image",
-    "live": "live"
+    "live": "live",
+    "keepAudio": "Keep audio:",
+    "outputFormat": "Output format:",
+    "cutRange": "Cut range:"
   },
   "option": {
     "heicDerived": "Heic derived",
@@ -42,10 +53,20 @@
     "converted": "Converted",
     "raw": "Raw",
     "snapshot": "Snapshot",
-    "unknown": "Unknown"
+    "motion": "Motion",
+    "newMotion": "New Motion",
+    "unknown": "Unknown",
+    "video": "video",
+    "image": "image",
+    "onlyTimestamp": "Timestamp only",
+    "transcode": "transcode"
   },
   "tips": {
     "imagePrior": "Image priority: raw motion > converted > raw",
-    "videoPrior": "Video priority: converted > raw"
+    "videoPrior": "Video priority: converted > raw",
+    "motiontips": "Suggest replace video part of motion photo only.",
+    "createMotio": "Confirm timestamp and video length before create.",
+    "cutVideo": "Extract image from video at position (s).",
+    "multiCore": "Multi-threaded core is faster, but unstable and not supported by all browsers."
   }
 }

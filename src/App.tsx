@@ -68,7 +68,6 @@ import {
   MoveHorizontal,
   MoveVertical,
   Infinity,
-  RefreshCcwDot,
   Camera,
   Clapperboard,
   FlagTriangleLeft,
@@ -145,7 +144,7 @@ function App() {
   const { t, i18n: { changeLanguage, language } } = useTranslation();
   const [currLang, setCurrLang] = useState(language)
   const { toast } = useToast();
-  const { getRootProps, getInputProps, open, isDragActive, isDragAccept, inputRef } = useDropzone({
+  const { getRootProps, getInputProps, open, isDragActive, isDragAccept, isDragReject, inputRef } = useDropzone({
     onDrop: (files) => files[0] && handleFileSelect(files[0]),
     accept: {
       "video/*": [],
@@ -173,7 +172,7 @@ function App() {
               tag: 'heicDerived',
             });
             setMediaTab("image");
-            resolve(t('toast.heicDone'))
+            resolve(t('toast.heicDone'));
           }).catch((err) => {
             setLogMessages(prev => [...prev, `❌ HEIC image ${err}`]);
             reject(new Error(`HEIC image`));
@@ -181,15 +180,15 @@ function App() {
         });
       } else {
         motionWorker(file).then((data: any) => {
-          setImageFile({ blob: data.image, url: URL.createObjectURL(data.image), ext: 'jpg', tag: 'embed' });
-          setVideoFile({ blob: data.video, url: URL.createObjectURL(data.video), ext: 'mp4', tag: 'embed' });
-          setMotionPhoto({ blob: file, url: "", ext: "jpg", tag: 'motion'});
-          setCaptureStamp(data.video.stamp / 1000000);
           motionXmpRef.current = {
             hasXmp: data.hasXmp,
             hasExtraXmp: data.hasExtraXmp,
             xmp: data.xmp || defaultXmpString,
           };
+          setImageFile({ blob: data.image, url: URL.createObjectURL(data.image), ext: 'jpg', tag: 'embed' });
+          setVideoFile({ blob: data.video, url: URL.createObjectURL(data.video), ext: 'mp4', tag: 'embed' });
+          setMotionPhoto({ blob: file, url: URL.createObjectURL(file), ext: "jpg", tag: 'motion'});
+          setCaptureStamp(data.video.stamp);
           setMediaTab("video");
           resolve(t('toast.motionLoad'));
         }).catch((err: any) => {
@@ -198,6 +197,17 @@ function App() {
         })
       }
     })
+  }
+
+  const cleanMotion = (): void => {
+    // reset motionXmpRef except xmp
+    const { xmp, ...resetKeys } = defaultXmp;
+    motionXmpRef.current = {...motionXmpRef.current, ...resetKeys};
+    // clean object
+    if (motionPhoto) URL.revokeObjectURL(motionPhoto.url);
+    if (convertedMotionPhoto) URL.revokeObjectURL(convertedMotionPhoto.url);
+    setMotionPhoto(null);
+    setConvertedMotionPhoto(null);
   }
 
   const motionWorker = (file: any) => {
@@ -238,7 +248,7 @@ function App() {
       })
     } else if (!videoDimension) {
       // use log dimension if original video not loaded
-      const videoLogStart = logMessages.findIndex(v => /`input\.${videoFile.ext}`/.test(v));
+      const videoLogStart = logMessages.findIndex(v => new RegExp(`input\.${videoFile!.ext}`).test(v));
       if (videoLogStart > 0) {
         // Search for dimensions and rotaion in 25 next logs
         const videoLogSlice = logMessages.slice(videoLogStart, videoLogStart + 25);
@@ -356,32 +366,33 @@ function App() {
     // console.log(mime);
     if (mime.startsWith("video/")) {
       setVideoFile({ blob: file, url: URL.createObjectURL(file), ext: ext, tag: 'raw' });
-      if (xmpString) setXmpString(prev => fixXmp(prev, file.size));
+      setXmpString(prev => fixXmp(prev, file.size));
       setMediaTab("video");
       toast({
         description: t('toast.videoLoad'),
       });
     } else if (mime.startsWith("image/")) {
       setLoading(prev => prev | 2);
+      cleanMotion();
       parseImageFile(file).then((msg) => {
         toast({
           description: msg,
         });
       }).catch((err: any) => {
         // If not motion photo, load as image.
-        motionXmpRef.current = defaultXmp;
         setImageFile({ blob: file, url: URL.createObjectURL(file), ext: ext, tag: 'raw' });
         setMediaTab("image");
         toast({
-          description: t('toast.err.load') + err + 'Check logs for details.',
+          description: t('toast.err.load') + err.message + t('toast.err.checkLogs'),
         });
       }).finally(() => {
         setLoading(prev => prev & ~2);
-      })
+      });
     }
   };
 
-  const handleUpload = async () => {
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
     let uploadCount = 0;
     setProgress(0);
     const uploadFile: (BlobUrl)[] = [imageFile, videoFile, convertedImageUrl, convertedVideoUrl, motionPhoto, convertedMotionPhoto].filter(
@@ -453,7 +464,7 @@ function App() {
       image: motionPhoto?.blob ?? convertedImageUrl?.blob ?? imageFile?.blob,
       video: convertedVideoUrl?.blob ?? videoFile?.blob,
     }).then((data: any) => {
-      setConvertedMotionPhoto({blob: data.file, url: URL.createObjectURL(data.file), ext: "jpg", tag: 'motion' })
+      setConvertedMotionPhoto({blob: data.file, url: URL.createObjectURL(data.file), ext: "jpg", tag: 'newMotion' })
       toast({
         description: '🚀 Success create motion photo, click download button.',
       });
@@ -523,14 +534,15 @@ function App() {
   };
 
   const extractjpg = async () => {
-    if (isExtractRaw) {
+    if (isExtractRaw === 4) {
       setCaptureStamp(extractStamp);
-      fixXmp();
+      setXmpString(fixXmp(undefined, undefined, extractStamp));
       toast({
         description: `🚀 Live photo stamp changed.`,
       });
     } else {
       setLoading(prev => prev | 4);
+      cleanMotion();
       ffexec({ obj: null, arg: 0 }, { obj: isExtractRaw === 2 ? convertedVideoUrl : videoFile, arg: 3 })
     }
   };
@@ -574,7 +586,7 @@ function App() {
       `output.${videoTypes[convertedVideoExt]}`,
     ], [
       "-ss",
-      extractStamp.toFixed(3),
+      (extractStamp / 1000000).toFixed(3),
       "-i",
       `input.${film?.obj?.ext}`,
       "-frames:v",
@@ -606,7 +618,7 @@ function App() {
         // TODO: determine image MIME.
         const imageBlob = new File(
           [data],
-          img.obj.blob.name.replace(/(\.[^.]+)?$/, "_embd$1"),
+          img.obj.blob.name.replace(/(\.[^.]+)?$/, "_conv$1"),
           { type: img.obj.blob.type }
         );
         setconvertedImageUrl({
@@ -648,7 +660,7 @@ function App() {
           const data = await ffmpeg.readFile(`output.${videoTypes[convertedVideoExt]}`);
           const videoBlob = new File(
             [data],
-            film.obj.blob.name.replace(/(\.[^.]+)?$/,"_embd." + videoMimeTypes[convertedVideoExt]),
+            film.obj.blob.name.replace(/(\.[^.]+)?$/,"_conv." + videoTypes[convertedVideoExt]),
             { type: videoMimeTypes[convertedVideoExt] }
           );
           const newfile = URL.createObjectURL(videoBlob);
@@ -659,7 +671,7 @@ function App() {
       } catch (e) {
         setLogMessages(prev => [...prev, `❌ Error transcoding video: ${e}`]);
         toast({
-          description: `⚠️ Error transcoding video!`,
+          description: `⚠️ Error transcoding video! Try resort task.`,
         });
         setProgress(0);
       }
@@ -668,13 +680,14 @@ function App() {
     ffmpeg.off("progress", progListener);
     setLoading(prev => prev & ~4);
     toast({
-      description: `🚀 Finish transcoding，try clicking on live photo tab.`,
+      description: `🚀 Finish transcoding，check live photo tab.`,
     });
   };
 
-  const fixXmp = (xmpContent?: string, videoSize?: number) => {
+  const fixXmp = (xmpContent?: string, videoSize?: number, stamp?: number) => {
     if (!xmpContent && xmpString) xmpContent = xmpString;
-    if (!xmpContent) return '';
+    if (!xmpContent) xmpContent = motionXmpRef.current.xmp;
+    if (!stamp && captureStamp >= 0) stamp = captureStamp;
     if (!videoSize) videoSize = (convertedVideoUrl ?? videoFile)?.blob.size ?? 0;
     // find OpCamera:VideoLength="..."/GCamera:MicroVideoOffset="..."/Item:Length="..."(after Item:Semantic="MotionPhoto")
     // replace ... with videoSize
@@ -686,7 +699,7 @@ function App() {
     newXmpContent = newXmpContent.replace(regex3, `Item:Semantic="MotionPhoto"$1Item:Length="${videoSize}"`);
     // Timestamp
     const regex4 = /(Camera:MotionPhoto\w*?PresentationTimestampUs=")\d+/g;
-    newXmpContent = newXmpContent.replace(regex4, `$1${captureStamp}`);
+    if (stamp) newXmpContent = newXmpContent.replace(regex4, `$1${stamp}`);
     return newXmpContent;
   }
 
@@ -699,15 +712,14 @@ function App() {
   }, [logMessages]);
 
   useEffect(() => {
+    if (imageFile) setXmpString(fixXmp());
     // revoke all images if raw image updated
     return () => {
       if (imageFile) URL.revokeObjectURL(imageFile.url);
       setImageDimension(null);
       setconvertedImageUrl(null);
-      setCaptureStamp(-1);
-      setXmpString(motionXmpRef.current.xmp);
-      setMotionPhoto(null);
-      setConvertedMotionPhoto(null);
+      // setCaptureStamp(-1);
+      // setXmpString(motionXmpRef.current.xmp);
     };
   }, [imageFile?.url]);
 
@@ -744,7 +756,7 @@ function App() {
       <Card className="max-w-full md:max-w-[700px] mx-auto md:p-2 my-4">
         <CardHeader>
           <CardTitle className="flex items-center">
-            <h2 className="flex-1">📸 {t('title.head')}</h2>
+            <h2 className="flex-1">📸 {t('title.head')} <sup>2025</sup></h2>
             <Button variant="outline" size="icon" onClick={handleI18n} className="rounded-r-none border-r-0">
               <Languages className="h-[1.2rem] w-[1.2rem]" />
               <span className="sr-only">Toggle language</span>
@@ -764,7 +776,8 @@ function App() {
               <input {...getInputProps()} />
               <p className="text-sm text-center">
                 {!isDragActive && t('input.title')}
-                {isDragAccept && t('input.drag')}
+                {isDragAccept && t('input.dragAccept')}
+                {isDragReject && t('input.dragReject')}
               </p>
               <Button
                 variant="outline"
@@ -785,7 +798,8 @@ function App() {
                   </>
                 )}
               </Button>
-              <div className="flex flex-wrap justify-center gap-x-1 *:mt-2 text-xs text-black/50">
+              <div className="flex flex-wrap justify-center gap-x-3 *:mt-2 text-xs">
+              <div className="flex gap-x-1">
                 {subVideoTypes.map((type) => (
                   <Badge
                     key={type}
@@ -796,7 +810,7 @@ function App() {
                 ))}
                 <Badge className={videoFile && !subVideoTypes.includes(videoFile.ext) ? undefined : "bg-(--color-input) text-(--color-foreground)"}>
                   {(videoFile && !subVideoTypes.includes(videoFile.ext)) ? videoFile.ext : '..'}
-                </Badge>
+                </Badge></div><div className="flex gap-x-1">
                 {imageTypes.map((type) => (
                   <Badge
                     key={type}
@@ -807,7 +821,7 @@ function App() {
                 ))}
                 <Badge className={imageFile && !imageTypes.includes(imageFile.ext) ? undefined : "bg-(--color-background) text-(--color-foreground)"}>
                   {(imageFile && !imageTypes.includes(imageFile.ext)) ? imageFile.ext : '..'}
-                </Badge>
+                </Badge></div>
               </div>
             </div>
 
@@ -851,7 +865,7 @@ function App() {
                   <LivePhoto
                     url={convertedImageUrl?.url ?? imageFile?.url}
                     videoUrl={convertedVideoUrl?.url ?? videoFile?.url}
-                    stamp={captureStamp}
+                    stamp={captureStamp / 1000000}
                     aspectRatio={imageDimension ? imageDimension.width / imageDimension.height : 16 / 9}
                     className="max-h-screen mx-auto"
                   />
@@ -919,7 +933,7 @@ function App() {
                       </label>
                     </TooltipTrigger>
                     <TooltipContent>
-                      Multi-threaded core is faster, but unstable and not supported by all browsers.
+                      {t('tips.multiCore')}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -933,15 +947,15 @@ function App() {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <h4 className="font-medium leading-none flex gap-1 flex-1 mb-4">Video setting <CircleAlert size={16} /></h4>
+                          <h4 className="font-medium leading-none flex gap-1 mb-2">{t('title.videoSet')} <CircleAlert size={16} /></h4>
                         </TooltipTrigger>
                         <TooltipContent>Set ffmpeg params, click button to apply current time of video</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    <div className="grid gap-3 **:text-xs">
+                    <div className="grid gap-2 **:text-xs">
                       <div className="flex justify-between items-center">
                         <label>
-                          Keep audio:
+                          {t('label.keepAudio')}
                         </label>
                         <Switch
                           checked={keepAudio}
@@ -954,7 +968,7 @@ function App() {
                       </div>
                       <div className="flex justify-between items-center">
                         <label>
-                          Output format:
+                          {t('label.outputFormat')}
                         </label>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -974,10 +988,8 @@ function App() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
-                      <div className="grid gap-2">
-                        <label>
-                          Cut range:
-                        </label>
+                      <div className="grid gap-1.5">
+                        <label>{t('label.cutRange')}</label>
                         <InputBtn icon={FlagTriangleLeft} tar={beginStamp} setter={setBeginStamp} videoRef={videoRef} />
                         <InputBtn icon={FlagTriangleRight} tar={stopStamp} setter={setStopStamp} videoRef={videoRef} />
                       </div>
@@ -995,7 +1007,7 @@ function App() {
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <h4 className="font-medium leading-none flex gap-1 flex-1">Scale <CircleAlert size={16} /></h4>
+                              <h4 className="font-medium leading-none flex gap-1 flex-1">{t('title.scale')} <CircleAlert size={16} /></h4>
                             </TooltipTrigger>
                             <TooltipContent>Set max pixels, keep original or reset with buttons on the right</TooltipContent>
                           </Tooltip>
@@ -1004,7 +1016,7 @@ function App() {
                           role="button"
                           onClick={() => setMaxDimensions([0, 0, 0, 0])}
                         />
-                        <RefreshCcwDot
+                        <RotateCw
                           role="button"
                           onClick={() => setMaxDimensions(defaultDimension)}
                         />
@@ -1029,7 +1041,7 @@ function App() {
                 </Popover>
 
                 <Popover onOpenChange={(open: boolean) => {
-                  open && videoRef.current && setExtractStamp(videoRef.current.currentTime)
+                  open && videoRef.current && setExtractStamp(videoRef.current.currentTime * 1000000)
                 }}
                 >
                   <PopoverTrigger asChild>
@@ -1038,17 +1050,25 @@ function App() {
                   <PopoverContent className="w-50">
                     <div className="grid gap-4">
                       <div className="space-y-2">
-                        <h4 className="leading-none font-medium">Snapshot</h4>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <h4 className="font-medium leading-none flex gap-1">{t('title.snapshot')} <CircleAlert size={16} /></h4>
+                            </TooltipTrigger>
+                            <TooltipContent>Ffmpeg needed, except only change timestamp value.</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         <p className="text-muted-foreground text-sm">
-                          Extract image from video at position (s).
+                          {t('tips.cutVideo')}
                         </p>
                       </div>
                       <div className="grid gap-3">
                         <Input
                           type="number"
                           step={0.1}
-                          value={extractStamp}
-                          onChange={(e) => setExtractStamp(e.target.valueAsNumber)}
+                          value={extractStamp / 1000000}
+                          placeholder="seconds"
+                          onChange={(e) => setExtractStamp(e.target.valueAsNumber * 1000000)}
                         />
                         <div className="flex">
                           <Button
@@ -1065,7 +1085,7 @@ function App() {
                             ) : (
                               <>
                                 <RotateCw className="h-4 w-4" />
-                                Snapshot
+                                {t('btn.snapshot')}
                               </>
                             )}
                           </Button>
@@ -1076,9 +1096,9 @@ function App() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <UpOpt disabled={!videoFile} index={1} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>Raw video</UpOpt>
-                              <UpOpt disabled={!convertedVideoUrl} index={2} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>Converted video</UpOpt>
-                              <UpOpt index={4} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>Only timestamp</UpOpt>
+                              <UpOpt disabled={!videoFile} index={1} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>{t('option.raw')}{t('option.video')}</UpOpt>
+                              <UpOpt disabled={!convertedVideoUrl} index={2} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>{t('option.converted')}{t('option.video')}</UpOpt>
+                              <UpOpt index={4} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>{t('option.onlyTimestamp')}</UpOpt>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -1135,8 +1155,8 @@ function App() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <UpOpt disabled={!imageFile} index={1} tar={isConvert} setter={setIsConvert}>transcode image</UpOpt>
-                    <UpOpt disabled={!videoFile} index={2} tar={isConvert} setter={setIsConvert}>transcode video</UpOpt>
+                    <UpOpt disabled={!imageFile} index={1} tar={isConvert} setter={setIsConvert}>{t('option.transcode')}{t('option.image')}</UpOpt>
+                    <UpOpt disabled={!videoFile} index={2} tar={isConvert} setter={setIsConvert}>{t('option.transcode')}{t('option.video')}</UpOpt>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -1180,8 +1200,11 @@ function App() {
             <Accordion type="single" collapsible className="mt-2">
               <AccordionItem value="motion">
                 <AccordionTrigger>
-                  🎬{t('title.motion')}
+                  🔅{t('title.motion')}
                   <div className="flex ml-auto mr-2 items-center gap-2">
+                    <Trash2 size={16} role="button"
+                      onClick={(e) => { e.stopPropagation(); setXmpString(''); motionXmpRef.current = defaultXmp }}
+                    />
                     <IconButton
                       onAction={async (e) => {
                         e.stopPropagation();
@@ -1202,7 +1225,7 @@ function App() {
                           <TooltipTrigger asChild>
                             <CircleAlert size={16} />
                           </TooltipTrigger>
-                          <TooltipContent>You can manually change timestamp and length AFTER media load</TooltipContent>
+                          <TooltipContent>{t('tips.createMotio')}</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>
@@ -1215,12 +1238,13 @@ function App() {
                     />
                     <Button
                       size="sm"
-                      disabled={(loading & 6) !== 0}
+                      disabled={(loading & 6) !== 0 || !(videoFile && imageFile)}
                       onClick={handleCreateMotion}
                     >
                       <LivePhotoIcon /> {t('btn.createMotion')}
                     </Button>
                     <p className="text-sm text-muted-foreground">
+                      * {t('tips.motiontips')}<br/>
                       * {t('tips.imagePrior')}<br/>
                       * {t('tips.videoPrior')}
                     </p>
@@ -1229,7 +1253,7 @@ function App() {
               </AccordionItem>
               <AccordionItem value="upload">
                 <AccordionTrigger>
-                  📤{t('title.upload')}
+                  ⚡️{t('title.upload')}
                   <div className="flex ml-auto mr-2 items-center gap-2">
                     <IconButton
                       onAction={handleSaveConfig}
@@ -1242,7 +1266,7 @@ function App() {
                 <AccordionContent>
                   <form
                     className="space-y-4 pt-2 pb-4 mx-2 [&_*]:text-xs"
-                    onSubmit={(e) => { e.preventDefault(); handleUpload() }}
+                    onSubmit={handleUpload}
                   >
                     <div className="flex justify-between items-center m-0">
                       <label htmlFor="api-url">
@@ -1392,7 +1416,7 @@ function App() {
                         disabled={(loading & 8) !== 0}
                       />
                       <label htmlFor="upload-method-switch">
-                        {usePost ? "POST" : "PUT"} METHOD
+                        {usePost ? "PUT" : "POST"} METHOD
                       </label>
                     </div>
 
@@ -1413,7 +1437,7 @@ function App() {
                         ) : (
                           <>
                             <UploadIcon className="mr-1 h-4 w-4" />
-                            Upload ({(isUpload.toString(2).split('1').length - 1) || "select on drop menu"})
+                            {t('btn.upload')} ({(isUpload.toString(2).split('1').length - 1) || t('btn.noUpload')})
                           </>
                         )}
                       </Button>
@@ -1459,7 +1483,7 @@ function App() {
                     ref={logContainerRef}
                     className='mt-2 rounded-md overflow-auto max-h-60 overscroll-auto md:overscroll-contain'
                   >
-                    <pre className="p-2 text-sm">
+                    <pre className={"p-2 text-sm" + (logMessages.length == 0 ? " after:content-['Nothing'] text-center text-gray-400" : "")}>
                       {logMessages.join("\n")}
                     </pre>
                   </div>
