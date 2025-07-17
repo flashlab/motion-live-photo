@@ -89,6 +89,7 @@ function App() {
 
   const [videoFile, setVideoFile] = useState<BlobUrl | null>(null);
   const [imageFile, setImageFile] = useState<BlobUrl | null>(null);
+  const [heicPhoto, setHeicPhoto] = useState<BlobUrl | null>(null);
   const [motionPhoto, setMotionPhoto] = useState<BlobUrl | null>(null);
   const [convertedMotionPhoto, setConvertedMotionPhoto] = useState<BlobUrl | null>(null);
   const [convertedVideoUrl, setConvertedVideoUrl] = useState<BlobUrl | null>(null);
@@ -139,7 +140,8 @@ function App() {
   const [loading, setLoading] = useState(0); // 0: idle, 1: download wasm, 2: parsing image, 4: ffmpeg, 8: uploading
   const [convertedVideoExt, setConvertedVideoExt] = useState(0); // 0: mp4, 1: mov, 2: webm
   const [isConvert, setIsConvert] = useState(3); // 1: image, 2: video, 3: both
-  const [isUpload, setIsUpload] = useState(0); // 1: image, 2: video, 4: converted image, 8: converted video, 16: motion photo, 32: converted motion photo
+  // 1: image, 2: video, 4: converted image, 8: converted video, 16: motion photo, 32: converted motion photo, 64: heic image
+  const [isUpload, setIsUpload] = useState(0);
   const [isExtractRaw, setisExtractRaw] = useState(1); // 1: extract from raw, 2: extract from converted, 4: only stamp change
   const { t, i18n: { changeLanguage, language } } = useTranslation();
   const [currLang, setCurrLang] = useState(language)
@@ -161,7 +163,11 @@ function App() {
       const isHeif = ['heic', 'heif'].includes(ext) || file.type === 'image/heic' || file.type === 'image/heif';
       if (isHeif) {
         // heic to jpeg
+        toast({
+          description: t('toast.heicDetect'),
+        });
         setLogMessages(prev => [...prev, `📣 HEIC image detected, converting to JPEG...`]);
+        setHeicPhoto({ blob: file, url: "", ext: ext, tag: 'raw'});
         import('heic-to').then(({ heicTo }) => {
           // TODO: Customize Heic-to params.
           heicTo({ blob: file, type: 'image/jpeg', quality: 0.8 }).then((blob) => {
@@ -208,6 +214,7 @@ function App() {
     if (convertedMotionPhoto) URL.revokeObjectURL(convertedMotionPhoto.url);
     setMotionPhoto(null);
     setConvertedMotionPhoto(null);
+    setHeicPhoto(null);
   }
 
   const motionWorker = (file: any) => {
@@ -395,7 +402,8 @@ function App() {
     e.preventDefault();
     let uploadCount = 0;
     setProgress(0);
-    const uploadFile: (BlobUrl)[] = [imageFile, videoFile, convertedImageUrl, convertedVideoUrl, motionPhoto, convertedMotionPhoto].filter(
+    const uploadFile: (BlobUrl)[] = [imageFile, videoFile, convertedImageUrl, convertedVideoUrl,
+      motionPhoto, convertedMotionPhoto, heicPhoto].filter(
       (o, i): o is BlobUrl => o !== null && (isUpload & (2 ** i)) !== 0
     );
     for (const media of uploadFile) {
@@ -1225,7 +1233,7 @@ function App() {
                           <TooltipTrigger asChild>
                             <CircleAlert size={16} />
                           </TooltipTrigger>
-                          <TooltipContent>{t('tips.createMotio')}</TooltipContent>
+                          <TooltipContent>{t('tips.createMotion')}</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>
@@ -1450,10 +1458,11 @@ function App() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {[imageFile, videoFile, convertedImageUrl, convertedVideoUrl, motionPhoto, convertedMotionPhoto].map((file, i) => (
+                          {[imageFile, videoFile, convertedImageUrl, convertedVideoUrl,
+                            motionPhoto, convertedMotionPhoto, heicPhoto].map((file, i) => (
                             file && (
                               <UpOpt index={2 ** i} tar={isUpload} setter={setIsUpload}>
-                                {t(`option.${file.tag}`)} {file.ext} ({humanFileSize(file.blob.size)})
+                                {t(`option.${file.tag ?? 'unknown'}`)} {file.ext} ({humanFileSize(file.blob.size)})
                               </UpOpt>
                             )
                           ))}

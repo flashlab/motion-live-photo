@@ -6,7 +6,7 @@
     "dragReject": "⚠️ Unsupported file, image/video only"
   },
   "toast": {
-    "heicDone": "🚀 HEIC image converted to JPEG.",
+    "heicDone": "🚀 Success convert HEIC image to JPEG.",
     "motionLoad": "🚀 Motion photo loaded.",
     "err": {
       "copyLogs": "⚠️ Error copy logs: ",
@@ -15,7 +15,8 @@
     },
     "videoLoad": "🚀 Video file loaded.",
     "upload": "🚀 Uploaded: ",
-    "renamed": "🚀 Success renamed:"
+    "renamed": "🚀 Success renamed:",
+    "heicDetect": "📣 HEIC image detected, loading js module may take some time."
   },
   "btn": {
     "wasm": "Load wasm",
@@ -65,7 +66,7 @@
     "imagePrior": "Image priority: raw motion > converted > raw",
     "videoPrior": "Video priority: converted > raw",
     "motiontips": "Suggest replace video part of motion photo only.",
-    "createMotio": "Confirm timestamp and video length before create.",
+    "createMotion": "Confirm timestamp and video length before create.",
     "cutVideo": "Extract image from video at position (s).",
     "multiCore": "Multi-threaded core is faster, but unstable and not supported by all browsers."
   }

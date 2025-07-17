@@ -164,7 +164,7 @@ const extractMotion = async (data: File) => {
 }
 
 const createMotion = async (data: any) => {
-  if (!data.image || !data.xmp) return; 
+  if (!data.image || !data.xmp) return { type: "err", msg: `❌ missing xmp or image.` }; 
   const newVideoArray = await fileToArray(data.video);
   return new Promise<any>((resolve, reject) => {
     const reader = new FileReader();

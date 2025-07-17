@@ -6,16 +6,17 @@
     "dragReject": "⚠️ 仅支持图片和视频格式"
   },
   "toast": {
-    "heicDone": "🚀 HEIC 图片转 JPEG 图片.",
-    "motionLoad": "🚀 实况照片已载入.",
+    "heicDone": "🚀 HEIC 转 JPEG 图片成功",
+    "motionLoad": "🚀 实况照片已载入",
     "err": {
       "copyLogs": "⚠️ 无法复制到剪切板：",
       "load": "⚠️ 可能不是 ",
       "checkLogs": "，请检查日志"
     },
-    "videoLoad": "🚀 视频文件已加载。",
+    "videoLoad": "🚀 视频文件已加载",
     "upload": "🚀 已上传：",
-    "renamed": "🚀 文件名已修改："
+    "renamed": "🚀 文件名已修改：",
+    "heicDetect": "📣 检测到 HEIC 文件，正在下载 JS 库"
   },
   "btn": {
     "wasm": "加载核心",
@@ -65,7 +66,7 @@
     "imagePrior": "图片优先级：原生实况 > 转换的 > 原始的",
     "videoPrior": "视频优先级：转换的 > 原始的",
     "motiontips": "因 Exif 兼容性，建议只替换原生实况照片的视频部分",
-    "createMotio": "生成前请确认视频长度和时间戳",
+    "createMotion": "生成前请确认视频长度和时间戳",
     "cutVideo": "从当前位置提取图片(秒)",
     "multiCore": "多线程速度更快但不稳定，转码失败时可尝试"
   }
