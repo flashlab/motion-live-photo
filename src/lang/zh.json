@@ -1,9 +1,10 @@
 {
   "input": {
-    "title": "拖入/粘贴照片视频，或点击导入",
+    "title": "拖入/粘贴/选择",
     "dragAccept": "自动判断 heif / 实况照片",
-    "select": "选择文件",
-    "dragReject": "⚠️ 仅支持图片和视频格式"
+    "select": "导入文件",
+    "dragReject": "⚠️ 仅支持图片和视频格式",
+    "titleHL": "照片和视频"
   },
   "toast": {
     "heicDone": "🚀 HEIC 转 JPEG 图片成功",
@@ -11,7 +12,8 @@
     "err": {
       "copyLogs": "⚠️ 无法复制到剪切板：",
       "load": "⚠️ 可能不是 ",
-      "checkLogs": "，请检查日志"
+      "checkLogs": "，请检查日志",
+      "videoCodec": "⚠️ 视频无法播放，尝试 ffmpeg 解决编码问题"
     },
     "videoLoad": "🚀 视频文件已加载",
     "upload": "🚀 已上传：",
@@ -24,7 +26,8 @@
     "upload": "上传",
     "createMotion": "生成实况照片",
     "noUpload": "请先下拉选中",
-    "snapshot": "截取"
+    "snapshot": "截取",
+    "ffmpeg": "转码（FFmpeg）"
   },
   "title": {
     "upload": "快速上传",
@@ -43,7 +46,7 @@
     "live": "实况",
     "keepAudio": "保留音频：",
     "outputFormat": "转码格式：",
-    "cutRange": "剪切范围："
+    "cutRange": "剪切区间(秒)："
   },
   "option": {
     "heicDerived": "转自 Heic 的",
@@ -68,6 +71,9 @@
     "motiontips": "因 Exif 兼容性，建议只替换原生实况照片的视频部分",
     "createMotion": "生成前请确认视频长度和时间戳",
     "cutVideo": "从当前位置提取图片(秒)",
-    "multiCore": "多线程速度更快但不稳定，转码失败时可尝试"
+    "multiCore": "多线程速度更快但不稳定，转码失败时可尝试",
+    "videoArgs": "设置视频转码参数，默认时间戳与当前播放进度一致",
+    "setPixel": "设置最大长宽，右方按钮可不修改或重置值",
+    "setTimestamp": "需要加载 FFmpeg，除非仅修改时间戳的值"
   }
 }

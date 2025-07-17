@@ -275,7 +275,7 @@ function App() {
 
   const onVideoError = () => {
     toast({
-      description: `⚠️ Error load video: codec not support? try transcode.`,
+      description: t('toast.err.videoCodec'),
     });
   }
 
@@ -783,7 +783,11 @@ function App() {
             >
               <input {...getInputProps()} />
               <p className="text-sm text-center">
-                {!isDragActive && t('input.title')}
+                {!isDragActive && (
+                  <>
+                   {t('input.title')}<span className="underline decoration-wavy">{t('input.titleHL')}</span>
+                  </>
+                )}
                 {isDragAccept && t('input.dragAccept')}
                 {isDragReject && t('input.dragReject')}
               </p>
@@ -957,7 +961,7 @@ function App() {
                         <TooltipTrigger asChild>
                           <h4 className="font-medium leading-none flex gap-1 mb-2">{t('title.videoSet')} <CircleAlert size={16} /></h4>
                         </TooltipTrigger>
-                        <TooltipContent>Set ffmpeg params, click button to apply current time of video</TooltipContent>
+                        <TooltipContent>{t('tips.videoArgs')}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                     <div className="grid gap-2 **:text-xs">
@@ -1017,7 +1021,7 @@ function App() {
                             <TooltipTrigger asChild>
                               <h4 className="font-medium leading-none flex gap-1 flex-1">{t('title.scale')} <CircleAlert size={16} /></h4>
                             </TooltipTrigger>
-                            <TooltipContent>Set max pixels, keep original or reset with buttons on the right</TooltipContent>
+                            <TooltipContent>{t('tips.setPixel')}</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                         <Infinity
@@ -1063,7 +1067,7 @@ function App() {
                             <TooltipTrigger asChild>
                               <h4 className="font-medium leading-none flex gap-1">{t('title.snapshot')} <CircleAlert size={16} /></h4>
                             </TooltipTrigger>
-                            <TooltipContent>Ffmpeg needed, except only change timestamp value.</TooltipContent>
+                            <TooltipContent>{t('tips.setTimestamp')}</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                         <p className="text-muted-foreground text-sm">
@@ -1152,7 +1156,7 @@ function App() {
                   ) : (
                     <>
                       <RotateCw className="h-4 w-4" />
-                      FFmpeg
+                      {t('btn.ffmpeg')}
                     </>
                   )}
                 </Button>

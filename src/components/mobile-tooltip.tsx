@@ -69,7 +69,7 @@ export const TooltipContent = (
   const isTouch = useTouch();
 
   return isTouch ? (
-    <PopoverContent {...props} />
+    <PopoverContent className="text-xs p-2" {...props} />
   ) : (
     <OriginalTooltipContent {...props} />
   );

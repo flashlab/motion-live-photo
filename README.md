@@ -31,6 +31,7 @@ You can find deployed version at the URL below:
 - [ ] Determine image MIME.
 - [ ] Manually abort uploading.
 - [ ] Converted image file type option.
+- [ ] More XMP template.
 
 
 # Compare jpg compress quality

@@ -1,9 +1,10 @@
 {
   "input": {
-    "title": "Drag/paste here, or click to import",
+    "title": "Drop/paste/select ",
     "dragAccept": "Auto detect motion photo..",
-    "select": "Select Media",
-    "dragReject": "⚠️ Unsupported file, image/video only"
+    "select": "Import Media",
+    "dragReject": "⚠️ Unsupported file, image/video only",
+    "titleHL": "IMAGE and VIDEO"
   },
   "toast": {
     "heicDone": "🚀 Success convert HEIC image to JPEG.",
@@ -11,7 +12,8 @@
     "err": {
       "copyLogs": "⚠️ Error copy logs: ",
       "load": "⚠️ Error parse ",
-      "checkLogs": ", Check logs for details."
+      "checkLogs": ", Check logs for details.",
+      "videoCodec": "⚠️ Error load video: codec not support? try ffmpeg first."
     },
     "videoLoad": "🚀 Video file loaded.",
     "upload": "🚀 Uploaded: ",
@@ -24,7 +26,8 @@
     "upload": "Upload",
     "createMotion": "Create Motion Photo",
     "noUpload": "select on drop menu",
-    "snapshot": "Snapshot"
+    "snapshot": "Snapshot",
+    "ffmpeg": "Transcode (FFmpeg)"
   },
   "title": {
     "upload": "Fast Upload",
@@ -68,6 +71,9 @@
     "motiontips": "Suggest replace video part of motion photo only.",
     "createMotion": "Confirm timestamp and video length before create.",
     "cutVideo": "Extract image from video at position (s).",
-    "multiCore": "Multi-threaded core is faster, but unstable and not supported by all browsers."
+    "multiCore": "Multi-threaded core is faster, but unstable and not supported by all browsers.",
+    "videoArgs": "Set ffmpeg params, click button to apply current time of video",
+    "setPixel": "Set max pixels, keep original or reset with buttons on the right",
+    "setTimestamp": "FFmpeg needed, except only change timestamp value."
   }
 }
