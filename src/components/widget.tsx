@@ -19,22 +19,22 @@ export function PixBox({ children, labelid, value, onChange }:
     )
   };
 
-  export function InputBtn({ icon: Icon, tar, setter:Setter, videoRef }:
-    {icon: React.FC<LucideProps>, tar: number, setter: React.Dispatch<React.SetStateAction<number>>, videoRef:React.RefObject<HTMLVideoElement | null>}) {
+  export function InputBtn({ icon:Icon, tar, setter:Setter, videoRef, placeholder }:
+    {icon: React.FC<LucideProps>, tar: number, setter: React.Dispatch<React.SetStateAction<number>>, videoRef:React.RefObject<HTMLVideoElement | null>, placeholder?:string}) {
     return (
       <div className="flex gap-2 items-center">
         <Icon size={15} className="text-gray-500"/>
         <Input
           type="number"
           step={0.1}
-          className="flex-1 pl-7 -ml-7"
+          className="flex-1 pl-7 -ml-7 h-7 md:text-xs"
           value={tar}
-          placeholder="seconds"
+          placeholder={placeholder}
           onChange={e => Setter(e.target.valueAsNumber)}
           autoComplete="off"
         />
         <Button
-          className="rounded-full"
+          className="rounded-full h-7 w-7"
           size="icon"
           onClick={() => videoRef.current && Setter(videoRef.current.currentTime)}
         >

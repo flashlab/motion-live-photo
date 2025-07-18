@@ -192,10 +192,12 @@ function App() {
             xmp: data.xmp || defaultXmpString,
           };
           setImageFile({ blob: data.image, url: URL.createObjectURL(data.image), ext: 'jpg', tag: 'embed' });
-          setVideoFile({ blob: data.video, url: URL.createObjectURL(data.video), ext: 'mp4', tag: 'embed' });
           setMotionPhoto({ blob: file, url: URL.createObjectURL(file), ext: "jpg", tag: 'motion'});
-          setCaptureStamp(data.video.stamp);
-          setMediaTab("video");
+          if (!videoFile || confirm(t('title.keepVideo'))) {
+            setVideoFile({ blob: data.video, url: URL.createObjectURL(data.video), ext: 'mp4', tag: 'embed' });
+            setCaptureStamp(data.video.stamp);
+            setMediaTab("video");
+          }
           resolve(t('toast.motionLoad'));
         }).catch((err: any) => {
           setLogMessages(prev => [...prev, `❌ Motion image ${err}`]);
@@ -446,7 +448,7 @@ function App() {
         .catch((err) => {
           setLogMessages(prev => [...prev, `❌ Error uploading ${media.blob.name}: ${err}`]);
           toast({
-            description: `⚠️ Error uploading ${media.blob.name}`,
+            description: `${t('toast.err.upload')} ${media.blob.name}`,
           });
         }).finally(() => {
           if (++uploadCount >= uploadFile.length) setLoading(prev => prev & ~8);
@@ -474,11 +476,11 @@ function App() {
     }).then((data: any) => {
       setConvertedMotionPhoto({blob: data.file, url: URL.createObjectURL(data.file), ext: "jpg", tag: 'newMotion' })
       toast({
-        description: '🚀 Success create motion photo, click download button.',
+        description: t('toast.motionCreate'),
       });
     }).catch(() => {
       toast({
-        description: '❌ Error create motion photo, check logs for detail.',
+        description: t('toast.err.motionCreate'),
       });
     }).finally(() => {
         setLoading(prev => prev & ~2);
@@ -497,7 +499,7 @@ function App() {
       setProgress(0);
       setLogMessages(prev => [...prev, `❌ Error loading ffmpeg core files: ${err}`]);
       toast({
-        description: `⚠️ Failed to load ffmpeg wasm`,
+        description: t('toast.err.wasm'),
       })
     }).finally(() => {
       setLoading(prev => prev & ~1);
@@ -955,7 +957,7 @@ function App() {
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="icon" className="h-6"><Clapperboard /></Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-50">
+                  <PopoverContent className="w-45">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -1002,8 +1004,20 @@ function App() {
                       </div>
                       <div className="grid gap-1.5">
                         <label>{t('label.cutRange')}</label>
-                        <InputBtn icon={FlagTriangleLeft} tar={beginStamp} setter={setBeginStamp} videoRef={videoRef} />
-                        <InputBtn icon={FlagTriangleRight} tar={stopStamp} setter={setStopStamp} videoRef={videoRef} />
+                        <InputBtn
+                          icon={FlagTriangleLeft}
+                          tar={beginStamp}
+                          setter={setBeginStamp}
+                          videoRef={videoRef}
+                          placeholder="1.23456"
+                        />
+                        <InputBtn
+                          icon={FlagTriangleRight}
+                          tar={stopStamp}
+                          setter={setStopStamp}
+                          videoRef={videoRef}
+                          placeholder="2.34567"
+                        />
                       </div>
                     </div>
                   </PopoverContent>
@@ -1013,7 +1027,7 @@ function App() {
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="icon" className="h-6"><ImageUpscale /></Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-50 [&_.lucide]:w-4 [&_.lucide]:h-4">
+                  <PopoverContent className="w-45 [&_.lucide]:w-4 [&_.lucide]:h-4">
                     <div className="grid gap-4">
                       <div className="flex items-center space-x-2">
                         <TooltipProvider>
@@ -1059,7 +1073,7 @@ function App() {
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="icon" className="h-6"><Camera /></Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-50">
+                  <PopoverContent className="w-45">
                     <div className="grid gap-4">
                       <div className="space-y-2">
                         <TooltipProvider>
@@ -1079,7 +1093,7 @@ function App() {
                           type="number"
                           step={0.1}
                           value={extractStamp / 1000000}
-                          placeholder="seconds"
+                          placeholder="1.23456"
                           onChange={(e) => setExtractStamp(e.target.valueAsNumber * 1000000)}
                         />
                         <div className="flex">
@@ -1108,8 +1122,8 @@ function App() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <UpOpt disabled={!videoFile} index={1} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>{t('option.raw')}{t('option.video')}</UpOpt>
-                              <UpOpt disabled={!convertedVideoUrl} index={2} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>{t('option.converted')}{t('option.video')}</UpOpt>
+                              <UpOpt disabled={!videoFile} index={1} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>{t('option.raw')} {t('option.video')}</UpOpt>
+                              <UpOpt disabled={!convertedVideoUrl} index={2} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>{t('option.converted')} {t('option.video')}</UpOpt>
                               <UpOpt index={4} tar={isExtractRaw} setter={setisExtractRaw} ratio={true}>{t('option.onlyTimestamp')}</UpOpt>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -1289,7 +1303,7 @@ function App() {
                           <TooltipTrigger asChild>
                             <CircleAlert size={16} />
                           </TooltipTrigger>
-                          <TooltipContent>Use <code>{`{filename}`}</code> to represent file name in url</TooltipContent>
+                          <TooltipContent>{t('tips.use')} <code>{`{filename}`}</code> {t('tips.apiUrl')}</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>
@@ -1317,7 +1331,7 @@ function App() {
                           <TooltipTrigger asChild>
                             <CircleAlert size={16} />
                           </TooltipTrigger>
-                          <TooltipContent><i>key:value</i> pairs<br />storage locally in PLAINTEXT!</TooltipContent>
+                          <TooltipContent><i>key:value</i> json<br />{t('tips.reqHeader')}</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>

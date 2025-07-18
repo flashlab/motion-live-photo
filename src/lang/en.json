@@ -13,12 +13,16 @@
       "copyLogs": "⚠️ Error copy logs: ",
       "load": "⚠️ Error parse ",
       "checkLogs": ", Check logs for details.",
-      "videoCodec": "⚠️ Error load video: codec not support? try ffmpeg first."
+      "videoCodec": "⚠️ Error load video: codec not support? try ffmpeg first.",
+      "upload": "⚠️ Error uploading",
+      "motionCreate": "❌ Error create motion photo, check logs for detail.",
+      "wasm": "⚠️ Failed to load ffmpeg wasm."
     },
     "videoLoad": "🚀 Video file loaded.",
     "upload": "🚀 Uploaded: ",
     "renamed": "🚀 Success renamed:",
-    "heicDetect": "📣 HEIC image detected, loading js module may take some time."
+    "heicDetect": "📣 HEIC image detected, loading js module may take some time.",
+    "motionCreate": "🚀 Success create motion photo, you can down(up)load."
   },
   "btn": {
     "wasm": "Load wasm",
@@ -33,11 +37,12 @@
     "upload": "Fast Upload",
     "head": "Live photo Assistant",
     "log": "Realtime Logs",
-    "rename": "Rename",
+    "rename": "Rename (without extension)",
     "motion": "Motion photo Mux (Beta)",
     "videoSet": "Video setting",
     "scale": "Scale",
-    "snapshot": "Snapshot"
+    "snapshot": "Snapshot",
+    "keepVideo": "⚠ Overlap the imported video?"
   },
   "label": {
     "multithread": "Multithread",
@@ -46,7 +51,7 @@
     "live": "live",
     "keepAudio": "Keep audio:",
     "outputFormat": "Output format:",
-    "cutRange": "Cut range:"
+    "cutRange": "Cut range(Sec):"
   },
   "option": {
     "heicDerived": "Heic derived",
@@ -74,6 +79,9 @@
     "multiCore": "Multi-threaded core is faster, but unstable and not supported by all browsers.",
     "videoArgs": "Set ffmpeg params, click button to apply current time of video",
     "setPixel": "Set max pixels, keep original or reset with buttons on the right",
-    "setTimestamp": "FFmpeg needed, except only change timestamp value."
+    "setTimestamp": "FFmpeg needed, except only change timestamp value.",
+    "use": "Use",
+    "apiUrl": "to represent file name in url.",
+    "reqHeader": "storage locally in PLAINTEXT!"
   }
 }
