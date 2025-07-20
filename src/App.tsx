@@ -372,7 +372,6 @@ function App() {
     // get file name
     const { ext } = parseFileName(file.name);
     const mime = file.type;
-    // console.log(mime);
     if (mime.startsWith("video/")) {
       setVideoFile({ blob: file, url: URL.createObjectURL(file), ext: ext, tag: 'raw' });
       setXmpString(prev => fixXmp(prev, file.size));
@@ -746,6 +745,8 @@ function App() {
     // revoke both videos if raw video updated
     return () => {
       if (videoFile) URL.revokeObjectURL(videoFile.url);
+      // remove video poster
+      if (videoRef.current) videoRef.current.poster = "";
       setVideoDimension(null)
       setConvertedVideoUrl(null)
     };
@@ -861,6 +862,7 @@ function App() {
                 <TabsContent value="video" forceMount className="data-[state=inactive]:hidden">
                   <video
                     ref={videoRef}
+                    poster={t('tips.poster')}
                     onLoadedMetadata={onLoadedMetadata}
                     onError={onVideoError}
                     controls
@@ -1047,8 +1049,7 @@ function App() {
                           onClick={() => setMaxDimensions(defaultDimension)}
                         />
                       </div>
-                      <div className="grid gap-2 [&>div]:grid [&>div]:grid-cols-3 [&>div]:items-center [&>div]:gap-4
-                                      [&_label]:flex [&_label]:gap-2 [&_input]:col-span-2 [&_input]:h-8">
+                      <div className="grid gap-2">
                         <PixBox labelid="iwidth" value={maxDimensions?.at(0) || 0} onChange={e => onSetDimensions(e, 0)}>
                           <Aperture /><MoveHorizontal />
                         </PixBox>
@@ -1200,7 +1201,7 @@ function App() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="dropdown-content-width-full">
                   {[imageFile, videoFile, convertedImageUrl, convertedVideoUrl, convertedMotionPhoto].map((file, i) => (
-                    file && (
+                    (file && file.tag !== "raw") && (
                       <DropdownMenuItem
                         key={file.url}
                         className="[&:hover>svg]:block gap-2"

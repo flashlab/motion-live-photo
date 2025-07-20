@@ -197,7 +197,7 @@ const createMotion = async (data: any) => {
           videoStart = originalArray.length;
       }
 
-      // TODO: fileds already hold shift is ignored, e.g. MPF; APP1 field beyond XMP, AKA vendors' additional fields.
+      // TODO: fields already hold shift is ignored, e.g. MPF; APP1 field beyond XMP, AKA vendors' additional fields.
       const extraXmpLength = data.hasExtraXmp ? updatedXmpArray.length : 0;
       const updatedFileArray = new Uint8Array(videoStart + newVideoArray.length - xmpEnd + xmpStart + updatedXmpArray.length - extraXmpEnd + extraXmpStart + extraXmpLength);
       let raw_app1 = originalArray.slice(0, xmpStart)

@@ -40,7 +40,7 @@
     "rename": "修改文件名（不含扩展名）",
     "motion": "生成实况照片（beta）",
     "videoSet": "视频转码设置",
-    "scale": "重设大小",
+    "scale": "调整尺寸",
     "snapshot": "截取图片",
     "keepVideo": "⚠ 是否覆盖已导入的视频？"
   },
@@ -82,6 +82,7 @@
     "setTimestamp": "需要加载 FFmpeg，除非仅修改时间戳的值",
     "use": "使用",
     "apiUrl": "替换 url 中的文件名。",
-    "reqHeader": "明文保存在 localStorage！"
+    "reqHeader": "明文保存在 localStorage！",
+    "poster": "/poster_zh.webp"
   }
 }

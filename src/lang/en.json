@@ -82,6 +82,7 @@
     "setTimestamp": "FFmpeg needed, except only change timestamp value.",
     "use": "Use",
     "apiUrl": "to represent file name in url.",
-    "reqHeader": "storage locally in PLAINTEXT!"
+    "reqHeader": "storage locally in PLAINTEXT!",
+    "poster": "/poster.webp"
   }
 }
