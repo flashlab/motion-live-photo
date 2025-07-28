@@ -65,9 +65,9 @@ export function humanFileSize(bytes: number, si=false, dp=1) {
 /**
  * Extracts the name and extension from a filename
  * @param {string} filename - The filename to process
- * @return {Object | null} containing the name and extension
+ * @return {Object} containing the name and extension
  */
-export function parseFileName(filename: string) {
+export function parseFileName(filename: string): { name: string, ext: string } {
   let name = "";
   let ext = "";
 

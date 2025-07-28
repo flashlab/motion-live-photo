@@ -11,6 +11,7 @@ type Option = {
 type DropdownInputProps = {
   options: Option[];
   value?: string;
+  disabled?: boolean;
   onChange?: (value: string) => void;
   onDelete?: (index: number) => void;
   onSelect?: (option: Option) => void;
@@ -20,6 +21,7 @@ type DropdownInputProps = {
 export default function DropdownInput({
   options = [], // Default empty array to prevent undefined
   value = '',
+  disabled = false,
   onChange,
   onDelete,
   onSelect,
@@ -75,6 +77,7 @@ export default function DropdownInput({
         type="text"
         className={cn("pr-10")}
         value={value}
+        disabled={disabled}
         onChange={handleInputChange}
         onFocus={() => setIsOpen(true)}
         {...props}

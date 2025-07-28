@@ -18,7 +18,7 @@ const indexOfSubarrayOptimized = (array: Uint8Array, subarray: Uint8Array, skipF
   return -1;
 }
 
-const findPatternInUint8ArrayReverse = (array: Uint8Array<ArrayBuffer>, pattern: any[]) => {
+const findPatternInUint8ArrayReverse = (array: Uint8Array<ArrayBuffer>, pattern: number[]) => {
   const patternLength = pattern.length;
   const arrayLength = array.length;
 
@@ -66,8 +66,17 @@ const fileToArray = async (file: File) => {
   })
 }
 
-const extractMotion = async (data: File) => {
-  return new Promise<any>((resolve) => {
+type MotionData = {
+  image: File;
+  video: File;
+  xmp: string;
+  hasXmp: boolean;
+  hasExtraXmp: boolean;
+  stamp?: number;
+};
+
+const extractMotion = (data: File) => {
+  return new Promise<MotionData>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       let videoStart = -1;
@@ -101,7 +110,8 @@ const extractMotion = async (data: File) => {
           postMessage({ type: "log", msg: `📣 Ftyp video file head: ${ftypIndex}.` });
           videoStart = ftypIndex;
         } else {
-          resolve({ type: "err", msg: "⚠️ No embed video found." });
+          reject(new Error("⚠️ No embed video found."));
+          return;
         }
       } else {
         hasXmp = true;
@@ -111,7 +121,7 @@ const extractMotion = async (data: File) => {
         );
         const matches_alt = xmpString.matchAll(/GCamera:MicroVideoOffset=["'](\d+)["']/g);
         const matches_stamp = xmpString.matchAll(/PresentationTimestampUs=["'](\d+)["']/g);
-        let videoLength = null;
+        let videoLength: number | null = null;
 
         for (const match of matches) {
           if (!videoLength) videoLength = parseInt(match[1], 10); // extract length of video
@@ -140,12 +150,14 @@ const extractMotion = async (data: File) => {
           }
         } else {
           postMessage({ type: "log", msg: "⚠️ No video locaion in XMP meta." });
-          resolve({ type: "err", msg: "⚠️ No video meta found." });
+          reject(new Error("⚠️ No video meta found."));
+          return;
         }
       }
 
       if (videoStart < 0 || videoStart > arrayBuffer.byteLength) {
-        resolve({ type: "err", msg: "⚠️ No embed video found." });
+        reject(new Error("⚠️ No embed video found."));
+        return;
       }
       postMessage({ type: "log", msg: `📣 Calculated video head location: ${videoStart}` });
 
@@ -156,17 +168,19 @@ const extractMotion = async (data: File) => {
         hasExtraXmp: hasExtraXmp,
         hasXmp: hasXmp,
         xmp: xmpString,
-        type: "res"
       });
+    };
+    reader.onerror = function (e) {
+      reject(e.target?.error || new Error("❌ File read error"));
     };
     reader.readAsArrayBuffer(data);
   });
 }
 
-const createMotion = async (data: any) => {
-  if (!data.image || !data.xmp) return { type: "err", msg: `❌ missing xmp or image.` }; 
+const createMotion = async (data: MotionData) => {
+  if (data.image.name === "" || !data.xmp) throw new Error('❌ missing xmp or image.');
   const newVideoArray = await fileToArray(data.video);
-  return new Promise<any>((resolve, reject) => {
+  return new Promise<File>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       const arrayBuffer = reader.result as ArrayBuffer;
@@ -233,22 +247,19 @@ const createMotion = async (data: any) => {
           updatedFileArray.set(originalArray.slice(xmpEnd, videoStart), xmpStart + updatedXmpArray.length);
           updatedFileArray.set(newVideoArray, videoStart - xmpEnd + xmpStart + updatedXmpArray.length);
       }
-      resolve({
-        file: new File([updatedFileArray], data.image.name.replace(/(\.[^.]+)?$/, "_live.jpg"), { type: "image/jpeg" }),
-        type: "res"
-      });
+      resolve(new File([updatedFileArray], data.image.name.replace(/(\.[^.]+)?$/, "_live.jpg"), { type: "image/jpeg" }));
     };
     reader.onerror = function (e) {
-      reject(e)
-    }
+      reject(e.target?.error || new Error("❌ File read error"));
+    };
     reader.readAsArrayBuffer(data.image);
   });
 }
 
 onmessage = async (e: MessageEvent<File>) => {
   try {
-    postMessage(e.data instanceof File ? await extractMotion(e.data) : await createMotion(e.data));
+    postMessage({ type: "res", msg:"Motion", obj: e.data instanceof File ? await extractMotion(e.data) : await createMotion(e.data)});
   } catch (err) {
-    postMessage({ type: "err", msg: `❌ Error extracting motion: ${err}` });
+    postMessage({ type: "err", msg: err });
   }
 }

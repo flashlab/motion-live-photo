@@ -52,7 +52,6 @@ export function UpOpt({ children, disabled, index, tar, setter, ratio = false }:
     <DropdownMenuCheckboxItem
         checked={(tar & index) !== 0}
         disabled={disabled}
-        key={index}
         onCheckedChange={(checked) => {
         if (ratio) setter(index)
         else setter(checked ? tar | index : tar & ~index)

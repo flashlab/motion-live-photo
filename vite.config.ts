@@ -1,5 +1,6 @@
 import react from "@vitejs/plugin-react";
 import path from "path";
+import tailwindcss from "@tailwindcss/vite";
 //import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
 import eslintPlugin from 'vite-plugin-eslint';
@@ -13,6 +14,7 @@ export default defineConfig({
         plugins: [["babel-plugin-react-compiler", { target: "19" }]],
       },
     }),
+    tailwindcss(),
     eslintPlugin({
       cache: false,
       include: ['./src//*.js', './src//*.jsx'],

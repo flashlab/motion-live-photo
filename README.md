@@ -27,10 +27,11 @@ You can find deployed version at the URL below:
 - [x] Customize uploaded file name.
 - [x] Generate motion photo.
 - [x] Split upload and convert state management.
+- [x] Cloud conversion with customed API.
 - [ ] Customize Heic-to params.
 - [ ] Determine image MIME.
 - [ ] Manually abort uploading.
-- [ ] Converted image file type option.
+- [x] Converted image file type option.
 - [ ] More XMP template.
 
 

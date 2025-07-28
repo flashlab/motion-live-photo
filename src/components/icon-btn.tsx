@@ -19,12 +19,12 @@ interface IconButtonProps {
    * Should return a Promise that resolves when the operation is complete
    * or rejects when there's an error
    */
-  onAction: (event: React.MouseEvent<SVGSVGElement>, params?: any) => Promise<void>;
+  onAction: (event: React.MouseEvent<SVGSVGElement>, params?: unknown) => Promise<void> | void;
   
    /**
    * Optional additional parameters to pass to the onAction callback
    */
-   actionParams?: any;
+   actionParams?: unknown;
 
   /**
    * Size of the icon
@@ -80,7 +80,8 @@ const IconButton: React.FC<IconButtonProps> = ({
   
   const handleClick = async (event: React.MouseEvent<SVGSVGElement>) => {
     try {
-      await onAction(event, actionParams);
+      if ('then' in onAction && typeof onAction.then === 'function') await onAction(event, actionParams)
+      else void onAction(event, actionParams);
       setSuccess(true);
       setIsError(false);
     } catch (error) {
@@ -94,7 +95,12 @@ const IconButton: React.FC<IconButtonProps> = ({
       {(success && !isError) ? (
         <SuccessIcon size={size} className="text-green-500" />
       ) : (
-        <Icon size={size} onClick={handleClick} aria-label={success ? successLabel : actionLabel} role="button" />
+        <Icon
+          size={size}
+          onClick={(e) => { void handleClick(e); }}
+          aria-label={success ? successLabel : actionLabel}
+          role="button"
+        />
       )}
     </>
   )

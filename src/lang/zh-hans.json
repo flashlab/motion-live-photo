@@ -14,15 +14,15 @@
       "load": "⚠️ 可能不是 ",
       "checkLogs": "，请检查日志。",
       "videoCodec": "⚠️ 视频无法播放！尝试转码解决可能的编码问题",
-      "upload": "⚠️ 无法上传",
+      "upload": "⚠️ 无法传输",
       "motionCreate": "❌ 无法生成实况照片！查看日志获取更多信息。",
       "wasm": "加载 ffmpeg 核心库失败！"
     },
     "videoLoad": "🚀 视频文件已加载",
-    "upload": "🚀 已上传：",
     "renamed": "🚀 文件名已修改：",
     "heicDetect": "📣 检测到 HEIC 文件，正在下载 JS 库",
-    "motionCreate": "🚀 成功生成实况照片，可下载或上传。"
+    "motionCreate": "🚀 成功生成实况照片，可下载或上传。",
+    "transfered": "🚀 传输完成："
   },
   "btn": {
     "wasm": "加载核心",
@@ -31,18 +31,19 @@
     "createMotion": "生成实况照片",
     "noUpload": "请先下拉选中",
     "snapshot": "截取",
-    "ffmpeg": "转码（FFmpeg）"
+    "ffmpeg": "转码（FFmpeg）",
+    "download": "下载替换"
   },
   "title": {
-    "upload": "快速上传",
+    "upload": "上传 & 云转码",
     "head": "实况照片 web 助手",
     "log": "实时日志",
     "rename": "修改文件名（不含扩展名）",
     "motion": "生成实况照片（beta）",
     "videoSet": "视频转码设置",
     "scale": "调整尺寸",
-    "snapshot": "截取图片",
-    "keepVideo": "⚠ 是否覆盖已导入的视频？"
+    "keepVideo": "⚠ 是否覆盖已导入的视频？",
+    "imageSet": "图片转码设置"
   },
   "label": {
     "multithread": "多线程",
@@ -51,7 +52,8 @@
     "live": "实况",
     "keepAudio": "保留音频：",
     "outputFormat": "转码格式：",
-    "cutRange": "剪切区间(秒)："
+    "cutRange": "剪切区间(秒)：",
+    "snapshot": "截取图片"
   },
   "option": {
     "heicDerived": "转自 Heic 的",
@@ -61,6 +63,7 @@
     "embed": "提取的",
     "raw": "原始的",
     "converted": "转换的",
+    "cloud": "云转换的",
     "snapshot": "截取的",
     "motion": "实况",
     "newMotion": "新实况",
@@ -68,21 +71,28 @@
     "video": "视频",
     "image": "图片",
     "onlyTimestamp": "仅修改标记",
-    "transcode": "转码"
+    "transcode": "转码",
+    "editCmd": "手动调参⚠️",
+    "requestDl": "下载替换",
+    "requestUp": "上传"
   },
   "tips": {
     "imagePrior": "图片优先级：原生实况 > 转换的 > 原始的",
     "videoPrior": "视频优先级：转换的 > 原始的",
     "motiontips": "因 Exif 兼容性，建议只替换原生实况照片的视频部分",
     "createMotion": "生成前请确认视频长度和时间戳",
-    "cutVideo": "默认显示当前进度(秒)",
+    "cutVideo": "默认值为当前进度(秒)，ffmpeg 用于截图",
     "multiCore": "多线程速度更快但不稳定，转码失败时可尝试",
-    "videoArgs": "设置视频转码参数，默认时间戳与当前播放进度一致",
+    "videoArgs": "设置视频转码参数，点击按钮录入当前时间戳",
     "setPixel": "设置最大长宽，右方按钮可不修改或重置值",
-    "setTimestamp": "需要加载 FFmpeg，除非仅修改时间戳的值",
     "use": "使用",
-    "apiUrl": "替换 url 中的文件名。",
-    "reqHeader": "明文保存在 localStorage！",
-    "poster": "/poster_zh.webp"
+    "apiUrl": "替换 url 中的文件名；",
+    "reqHeader": "需要点击 + 号添加并应用当前字段",
+    "poster": "/poster_zh.webp",
+    "apiUrl2": "标记文件类型",
+    "imageArgs": "设置视频转码参数",
+    "uploadtips": "点击右上角保存按钮将以明文形式储存于浏览器本地",
+    "cors": "请自行解决跨域问题",
+    "downloadtips": "云端转换需要提前上传，建议在 url 中标记文件后缀"
   }
 }

@@ -14,15 +14,15 @@
       "load": "⚠️ Error parse ",
       "checkLogs": ", Check logs for details.",
       "videoCodec": "⚠️ Error load video: codec not support? try ffmpeg first.",
-      "upload": "⚠️ Error uploading",
+      "upload": "⚠️ Error transfering",
       "motionCreate": "❌ Error create motion photo, check logs for detail.",
       "wasm": "⚠️ Failed to load ffmpeg wasm."
     },
     "videoLoad": "🚀 Video file loaded.",
-    "upload": "🚀 Uploaded: ",
     "renamed": "🚀 Success renamed:",
     "heicDetect": "📣 HEIC image detected, loading js module may take some time.",
-    "motionCreate": "🚀 Success create motion photo, you can down(up)load."
+    "motionCreate": "🚀 Success create motion photo, you can down(up)load.",
+    "transfered": "🚀 Transfered: "
   },
   "btn": {
     "wasm": "Load wasm",
@@ -31,18 +31,19 @@
     "createMotion": "Create Motion Photo",
     "noUpload": "select on drop menu",
     "snapshot": "Snapshot",
-    "ffmpeg": "Transcode (FFmpeg)"
+    "ffmpeg": "Transcode (FFmpeg)",
+    "download": "下载"
   },
   "title": {
-    "upload": "Fast Upload",
+    "upload": "Upload & Cloud convert",
     "head": "Live photo Assistant",
     "log": "Realtime Logs",
     "rename": "Rename (without extension)",
     "motion": "Motion photo Mux (Beta)",
     "videoSet": "Video setting",
     "scale": "Scale",
-    "snapshot": "Snapshot",
-    "keepVideo": "⚠ Overlap the imported video?"
+    "keepVideo": "⚠ Overlap the imported video?",
+    "imageSet": "Image setting"
   },
   "label": {
     "multithread": "Multithread",
@@ -51,7 +52,8 @@
     "live": "live",
     "keepAudio": "Keep audio:",
     "outputFormat": "Output format:",
-    "cutRange": "Cut range(Sec):"
+    "cutRange": "Cut range(Sec):",
+    "snapshot": "Snapshot"
   },
   "option": {
     "heicDerived": "Heic derived",
@@ -60,6 +62,7 @@
     "system": "System",
     "embed": "Embed",
     "converted": "Converted",
+    "cloud": "Cloud",
     "raw": "Raw",
     "snapshot": "Snapshot",
     "motion": "Motion",
@@ -68,21 +71,27 @@
     "video": "video",
     "image": "image",
     "onlyTimestamp": "Timestamp only",
-    "transcode": "transcode"
+    "transcode": "transcode",
+    "editCmd": "Edit command⚠️",
+    "requestDl": "Fetch and replace"
   },
   "tips": {
     "imagePrior": "Image priority: raw motion > converted > raw",
     "videoPrior": "Video priority: converted > raw",
     "motiontips": "Suggest replace video part of motion photo only.",
     "createMotion": "Confirm timestamp and video length before create.",
-    "cutVideo": "Extract image from video at position (s).",
+    "cutVideo": "Extract image from video at position (s) with ffmpeg.",
     "multiCore": "Multi-threaded core is faster, but unstable and not supported by all browsers.",
     "videoArgs": "Set ffmpeg params, click button to apply current time of video",
     "setPixel": "Set max pixels, keep original or reset with buttons on the right",
-    "setTimestamp": "FFmpeg needed, except only change timestamp value.",
     "use": "Use",
-    "apiUrl": "to represent file name in url.",
-    "reqHeader": "storage locally in PLAINTEXT!",
-    "poster": "/poster.webp"
+    "apiUrl": "to represent file name in url;",
+    "reqHeader": "Click + to append and apply current http header",
+    "poster": "/poster.webp",
+    "apiUrl2": "to mark file extension",
+    "imageArgs": "Set ffmpeg params",
+    "uploadtips": "The configurations will be saved to Local Storage if clicking top-right button",
+    "cors": "The CORS issue may exsits while downloading or uploading",
+    "downloadtips": "Cloud conversion need pre-upload, marking the file extension in url is recommended"
   }
 }
