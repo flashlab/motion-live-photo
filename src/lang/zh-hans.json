@@ -10,13 +10,13 @@
     "heicDone": "🚀 HEIC 转 JPEG 图片成功",
     "motionLoad": "🚀 实况照片已载入",
     "err": {
-      "copyLogs": "⚠️ 无法复制到剪切板：",
       "load": "⚠️ 可能不是 ",
       "checkLogs": "，请检查日志。",
       "videoCodec": "⚠️ 视频无法播放！尝试转码解决可能的编码问题",
       "upload": "⚠️ 无法传输",
       "motionCreate": "❌ 无法生成实况照片！查看日志获取更多信息。",
-      "wasm": "加载 ffmpeg 核心库失败！"
+      "wasm": "加载 ffmpeg 核心库失败！",
+      "pasteConf": "⚠️ 无法读取剪切板："
     },
     "videoLoad": "🚀 视频文件已加载",
     "renamed": "🚀 文件名已修改：",
@@ -43,7 +43,8 @@
     "videoSet": "视频转码设置",
     "scale": "调整尺寸",
     "keepVideo": "⚠ 是否覆盖已导入的视频？",
-    "imageSet": "图片转码设置"
+    "imageSet": "图片转码设置",
+    "pasteConf": "是否覆盖服务器配置？"
   },
   "label": {
     "multithread": "多线程",

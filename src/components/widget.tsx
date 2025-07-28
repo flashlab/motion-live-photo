@@ -5,7 +5,7 @@ import { LucideProps, Camera } from "lucide-react";
 export function PixBox({ children, labelid, value, onChange }:
                        {children: React.ReactElement[], labelid: string, value: number, onChange: React.ChangeEventHandler<HTMLInputElement>}) {
     return (
-      <div className='grid grid-cols-3 items-center gap-4'>
+      <div className='grid grid-cols-3 items-center gap-2'>
         <label htmlFor={labelid} className='flex gap-2'>
           {children}
         </label>

@@ -10,13 +10,13 @@
     "heicDone": "🚀 Success convert HEIC image to JPEG.",
     "motionLoad": "🚀 Motion photo loaded.",
     "err": {
-      "copyLogs": "⚠️ Error copy logs: ",
       "load": "⚠️ Error parse ",
       "checkLogs": ", Check logs for details.",
       "videoCodec": "⚠️ Error load video: codec not support? try ffmpeg first.",
       "upload": "⚠️ Error transfering",
       "motionCreate": "❌ Error create motion photo, check logs for detail.",
-      "wasm": "⚠️ Failed to load ffmpeg wasm."
+      "wasm": "⚠️ Failed to load ffmpeg wasm.",
+      "pasteConf": "⚠️ Error copy logs: "
     },
     "videoLoad": "🚀 Video file loaded.",
     "renamed": "🚀 Success renamed:",
@@ -43,7 +43,8 @@
     "videoSet": "Video setting",
     "scale": "Scale",
     "keepVideo": "⚠ Overlap the imported video?",
-    "imageSet": "Image setting"
+    "imageSet": "Image setting",
+    "pasteConf": "Overwrite existing server config?"
   },
   "label": {
     "multithread": "Multithread",

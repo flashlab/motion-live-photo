@@ -82,3 +82,11 @@ export function parseFileName(filename: string): { name: string, ext: string } {
   
   return { name: name, ext: ext };
 }
+
+export function getLogTimestamp() {
+    const now = new Date();
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    const ss = String(now.getSeconds()).padStart(2, "0");
+    const ms = String(now.getMilliseconds()).padStart(3, "0");
+    return `[${mm}:${ss}:${ms}]`;
+  }

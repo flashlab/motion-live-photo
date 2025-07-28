@@ -54,7 +54,12 @@ import { useToast } from "@/hooks/use-toast";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import { FFMPEG_URL } from "@/lib/const";
-import { resizeDimensions, humanFileSize, parseFileName } from "@/lib/utils";
+import {
+  resizeDimensions,
+  humanFileSize,
+  parseFileName,
+  getLogTimestamp,
+} from "@/lib/utils";
 import {
   ReactCompareSlider,
   ReactCompareSliderImage,
@@ -119,6 +124,7 @@ import {
   Plus,
   Languages,
   SquarePen,
+  WrapText,
 } from "lucide-react";
 
 let fileWorker: Worker | null = null;
@@ -248,6 +254,7 @@ function App() {
   // 1: image, 2: video, 4: converted image, 8: converted video, 16: motion photo, 32: converted motion photo, 64: heic image
   const [isUpload, setIsUpload] = useState(0);
   const [isExtractRaw, setisExtractRaw] = useState(1); // 1: extract from raw, 2: extract from converted, 4: only stamp change
+  const [wrapLog, setWrapLog] = useState(false);
   const { t, i18n } = useTranslation();
   const [currLang, setCurrLang] = useState(i18n.language);
   const { toast } = useToast();
@@ -282,10 +289,7 @@ function App() {
         toast({
           description: t("toast.heicDetect"),
         });
-        setLogMessages((prev) => [
-          ...prev,
-          `📣 HEIC image detected, converting to JPEG...`,
-        ]);
+        appendLog(`📣 HEIC image detected, converting to JPEG...`);
         setHeicPhoto({ blob: file, url: "", ext: ext, tag: "raw" });
         import("heic-to")
           .then(({ heicTo }) => {
@@ -306,7 +310,7 @@ function App() {
               });
           })
           .catch((err: Error) => {
-            setLogMessages((prev) => [...prev, `❌ HEIC image ${err}`]);
+            appendLog(`❌ HEIC image ${err}`);
             reject(new Error(`HEIC image`));
           });
       } else {
@@ -342,7 +346,7 @@ function App() {
             resolve(t("toast.motionLoad"));
           })
           .catch((err: Error) => {
-            setLogMessages((prev) => [...prev, `❌ Motion image ${err}`]);
+            appendLog(`❌ Motion image ${err}`);
             reject(new Error(`Motion image`));
           });
       }
@@ -381,16 +385,16 @@ function App() {
             resolve(e.data.obj as T extends File ? MotionData : File);
             break;
           case "log":
-            setLogMessages((prev) => [...prev, e.data.msg]);
+            appendLog(e.data.msg);
             break;
           case "err":
-            setLogMessages((prev) => [...prev, e.data.msg]);
+            appendLog(e.data.msg);
             reject(new Error(`motion photo`));
         }
       };
 
       fileWorker.onerror = (err) => {
-        setLogMessages((prev) => [...prev, `❌ worker module ${err.message}`]);
+        appendLog(`❌ worker module ${err.message}`);
         reject(new Error(`worker module`));
       };
       fileWorker.postMessage(file);
@@ -461,8 +465,7 @@ function App() {
     );
   };
 
-  const handleSaveConfig = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleSaveConfig = async () => {
     const configs = serverConfig;
     if (endPoint) {
       const newConfig = {
@@ -482,28 +485,27 @@ function App() {
     return Promise.resolve();
   };
 
-  const handleLog = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const logContainer = logContainerRef.current;
-    if (!logContainer?.textContent)
-      return Promise.reject(new Error("empty log"));
-    if ((e.target as HTMLElement).dataset.action === "trash") {
-      setLogMessages([]);
-    } else {
-      try {
-        await navigator.clipboard.writeText(logContainer.textContent);
-      } catch (err) {
-        setLogMessages((prev) => [
-          ...prev,
-          `❌ ${t("toast.err.copyLogs")} ${String(err)}`,
-        ]);
-        toast({
-          description: t("toast.err.copyLogs"),
-        });
-        return Promise.reject(new Error(String(err)));
+  const handlePasteConfig = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const oldConf: SvrConfig[] = loadStorageJson("serverConfig") ?? [];
+      const config = JSON.parse(text) as SvrConfig[];
+      if (config.length === 0) {
+        throw new Error("Empty configs");
       }
+      if (oldConf.length === 0 || confirm(t("title.pasteConf"))) {
+        setEndPoint(config[0].url ?? "");
+        setEndPointHeader(config[0].headers ?? []);
+        setEndPointBody(config[0].bodys ?? []);
+        setReqMethod(config[0].post || 0);
+        setReqMode(config[0].mode || 0);
+      }
+    } catch (err) {
+      toast({
+        description: t("toast.err.pasteConf") + String(err),
+      });
+      return Promise.reject(new Error("Failed to paste configuration"));
     }
-    return Promise.resolve();
   };
 
   const handleI18n = () => {
@@ -682,10 +684,7 @@ function App() {
                 reject(new Error(`File parse error: ${String(err)}`));
               }
             }
-            setLogMessages((prev) => [
-              ...prev,
-              `🚩 ${xhr.status} ${textResponse}`,
-            ]);
+            appendLog(`🚩 ${xhr.status} ${textResponse}`);
             resolve();
           } else {
             reject(
@@ -706,19 +705,13 @@ function App() {
       );
       reqPromise
         .then(() => {
-          setLogMessages((prev) => [
-            ...prev,
-            realEndPoint + "🚀" + reqMode ? "" : media.blob.name,
-          ]);
+          appendLog(realEndPoint + "🚀" + reqMode ? "" : media.blob.name);
           toast({
             description: t("toast.transfered") + reqMode ? "" : media.blob.name,
           });
         })
         .catch((err) => {
-          setLogMessages((prev) => [
-            ...prev,
-            `❌ Error uploading ${media.blob.name}: ${err}`,
-          ]);
+          appendLog(`❌ Error uploading ${media.blob.name}: ${err}`);
           toast({
             description: `${t("toast.err.upload")} ${
               reqMode ? "" : media.blob.name
@@ -787,10 +780,7 @@ function App() {
       })
       .catch((err) => {
         setProgress(0);
-        setLogMessages((prev) => [
-          ...prev,
-          `❌ Error loading ffmpeg core files: ${err}`,
-        ]);
+        appendLog(`❌ Error loading ffmpeg core files: ${err}`);
         toast({
           description: t("toast.err.wasm"),
         });
@@ -879,7 +869,7 @@ function App() {
 
     const outputVideoExt = videoTypes[convertedVideoExt];
     const outputImageExt = imageTypes[convertedImageExt];
-    const argsHead = ["-v", "level+info", "-y"];
+    const argsHead = ["-v", "level+verbose", "-y"];
     const ffmpegArgs = [
       ["-loglevel", "quiet", "-i", "empty.webm", "empty.mp4"],
       [
@@ -924,14 +914,8 @@ function App() {
 
     // Listen to progress event instead of log.
     // progress event is experimental, be careful when using it
-    const logListener = ({
-      message,
-      type,
-    }: {
-      message: string;
-      type: string;
-    }) => {
-      setLogMessages((prev) => [...prev, message]);
+    const logListener = ({ message }: { message: string }) => {
+      appendLog(message);
     };
     const progListener = ({ progress: prog }: { progress: number }) => {
       setProgress(Math.round(Math.min(100, prog * 100)));
@@ -967,10 +951,7 @@ function App() {
           tag: "converted",
         });
       } catch (e) {
-        setLogMessages((prev) => [
-          ...prev,
-          `❌ Error transcoding image: ${String(e)}`,
-        ]);
+        appendLog(`❌ Error transcoding image: ${String(e)}`);
         toast({
           description: `⚠️ Error transcoding image! Auto reload core`,
         });
@@ -1027,10 +1008,7 @@ function App() {
             videoRef.current.src = newfile;
         }
       } catch (e) {
-        setLogMessages((prev) => [
-          ...prev,
-          `❌ Error transcoding video: ${String(e)}`,
-        ]);
+        appendLog(`❌ Error transcoding video: ${String(e)}`);
         toast({
           description: `⚠️ Error transcoding video! Try resort task.`,
         });
@@ -1074,6 +1052,10 @@ function App() {
     if (stamp) newXmpContent = newXmpContent.replace(regex4, `$1${stamp}`);
     return newXmpContent;
   };
+
+  function appendLog(msg: string) {
+    setLogMessages((prev) => [...prev, `${getLogTimestamp()} ${msg}`]);
+  }
 
   // Handle auto-scrolling logs
   useEffect(() => {
@@ -1461,14 +1443,15 @@ function App() {
                       <ImageUpscale />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-45 [&_.lucide]:w-4 [&_.lucide]:h-4">
+                  <PopoverContent className="w-40 [&_.lucide]:w-4 [&_.lucide]:h-4">
                     <div className="grid gap-4">
                       <div className="flex items-center space-x-2">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <h4 className="font-medium leading-none flex gap-1 flex-1">
-                                {t("title.scale")} <CircleAlert size={16} />
+                              <h4 className="text-sm flex gap-1 flex-1">
+                                {t("title.scale")}{" "}
+                                <CircleAlert className="!w-3 !h-3" />
                               </h4>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -1529,12 +1512,13 @@ function App() {
                       <Clapperboard />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-45">
+                  <PopoverContent className="w-40">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <h4 className="font-medium leading-none flex gap-1 mb-2">
-                            {t("title.videoSet")} <CircleAlert size={16} />
+                          <h4 className="text-sm flex gap-1 mb-2">
+                            {t("title.videoSet")}{" "}
+                            <CircleAlert className="!w-3 !h-3" />
                           </h4>
                         </TooltipTrigger>
                         <TooltipContent>{t("tips.videoArgs")}</TooltipContent>
@@ -1617,12 +1601,13 @@ function App() {
                       <Camera />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-45">
+                  <PopoverContent className="w-40">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <h4 className="font-medium leading-none flex gap-1 mb-2">
-                            {t("title.imageSet")} <CircleAlert size={16} />
+                          <h4 className="text-sm flex gap-1 mb-2">
+                            {t("title.imageSet")}{" "}
+                            <CircleAlert className="!w-3 !h-3" />
                           </h4>
                         </TooltipTrigger>
                         <TooltipContent>{t("tips.imageArgs")}</TooltipContent>
@@ -1661,7 +1646,7 @@ function App() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <label>
-                                {t("label.snapshot")}{" "}
+                                {t("label.snapshot")}
                                 <CircleAlert size={14} className="inline" />
                               </label>
                             </TooltipTrigger>
@@ -1893,14 +1878,14 @@ function App() {
                 <AccordionTrigger>
                   🔅{t("title.motion")}
                   <div className="flex ml-auto mr-2 items-center gap-2">
-                    <Trash2
-                      size={16}
-                      role="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
+                    <IconButton
+                      onAction={() => {
                         setXmpString("");
                         motionXmpRef.current = defaultXmp;
                       }}
+                      icon={Trash2}
+                      actionLabel="Clear"
+                      successLabel="Cleared"
                     />
                     <IconButton
                       onAction={() =>
@@ -1956,6 +1941,11 @@ function App() {
                   ⚡️{t("title.upload")}
                   <div className="flex ml-auto mr-2 items-center gap-2">
                     <IconButton
+                      onAction={handlePasteConfig}
+                      actionLabel="Paste"
+                      successLabel="Pasted"
+                    />
+                    <IconButton
                       onAction={handleSaveConfig}
                       icon={SaveAll}
                       actionLabel="Save"
@@ -2009,6 +1999,7 @@ function App() {
                         setEndPointHeader(serverConfig[o.id].headers ?? []);
                         setEndPointBody(serverConfig[o.id].bodys ?? []);
                         setReqMethod(serverConfig[o.id].post || 0);
+                        setReqMode(serverConfig[o.id].mode || 0);
                       }}
                     />
                     <div className="flex justify-between items-center m-0">
@@ -2020,9 +2011,7 @@ function App() {
                           <TooltipTrigger asChild>
                             <CircleAlert size={16} />
                           </TooltipTrigger>
-                          <TooltipContent>
-                            {t("tips.reqHeader")}
-                          </TooltipContent>
+                          <TooltipContent>{t("tips.reqHeader")}</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>
@@ -2315,19 +2304,15 @@ function App() {
                 <AccordionTrigger>
                   📜{t("title.log")}
                   <div className="flex ml-auto mr-2 items-center gap-2">
-                    <Trash2
-                      size={16}
-                      role="button"
-                      data-action="trash"
-                      onClick={(e) => {
-                        void handleLog(e);
-                      }}
+                    <IconButton
+                      icon={Trash2}
+                      actionLabel="Clear"
+                      successLabel="Cleared"
+                      onAction={() => setLogMessages([])}
                     />
                     <IconButton
-                      onAction={handleLog}
-                      actionParams={true}
-                      actionLabel="Copy"
-                      successLabel="Copied"
+                      icon={WrapText}
+                      onAction={() => setWrapLog(!wrapLog)}
                     />
                   </div>
                 </AccordionTrigger>
@@ -2341,7 +2326,8 @@ function App() {
                         "p-2 text-sm" +
                         (logMessages.length == 0
                           ? " after:content-['Nothing'] text-center text-gray-400"
-                          : "")
+                          : "") +
+                        (wrapLog ? " whitespace-pre-wrap" : "")
                       }
                     >
                       {logMessages.join("\n")}

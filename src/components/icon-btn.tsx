@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Check, LucideIcon } from 'lucide-react';
+import { Copy, Check, X, LucideIcon } from 'lucide-react';
 
 interface IconButtonProps {
   /**
@@ -66,22 +66,21 @@ const IconButton: React.FC<IconButtonProps> = ({
   
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout>;
-    
-    if (success && !isError) {
+    if (success || isError) {
       timeout = setTimeout(() => {
         setSuccess(false);
+        setIsError(false);
       }, successDuration);
     }
-    
     return () => {
       if (timeout) clearTimeout(timeout);
     };
   }, [success, isError, successDuration]);
   
   const handleClick = async (event: React.MouseEvent<SVGSVGElement>) => {
+    event.stopPropagation();
     try {
-      if ('then' in onAction && typeof onAction.then === 'function') await onAction(event, actionParams)
-      else void onAction(event, actionParams);
+      await onAction(event, actionParams);
       setSuccess(true);
       setIsError(false);
     } catch (error) {
@@ -92,7 +91,9 @@ const IconButton: React.FC<IconButtonProps> = ({
   
   return (
     <>
-      {(success && !isError) ? (
+      {isError ? (
+        <X size={size} className="text-red-500" />
+      ) : success ? (
         <SuccessIcon size={size} className="text-green-500" />
       ) : (
         <Icon
