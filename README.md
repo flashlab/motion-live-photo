@@ -5,16 +5,16 @@ A SPA online tool that converted and compressed [live photo](https://developer.a
 ✨ Main features:
 
 1. Recognition and preview motion photo series jpg files (google/xiaomi/oppo).
-2. Convert or Reduce media (pixel, cut, mute..) by ffmpeg wasm (single/multithread).
+2. Convert or Reduce media (pixel, cut, mute..) by ffmpeg wasm (single/multithread) with parameters adjustable, build-in compare slider enable change visualization of images.
 3. Take snapshot of video as static image of motion photo and custom presentation timestamp.
 4. Recreate motion photo jpg file from above with ability to custom XMP meta (experimental).
-4. Download, and Upload with flexible API of all above.
-5. Realtime logs.
-6. Save configs locally.
+4. Download / Upload with flexible API of all above, and fetch transformed image from cloud API (e.g. cloudflare image).
+5. Realtime logs with time stamps.
+6. Save configs locally and load from clipboard.
 7. Heic/heif image supported, you should export heic/jpg and mov file from iphone before import.
 8. Multi-language and dark theme.
 
-UI inspired by [video-dark2light-ffmpeg](https://github.com/The-Best-Codes/video-dark2light-ffmpeg). The motion photo parse and generate algorithm was derived from [https://motion-photo-parser.site.0to1.cf](https://motion-photo-parser.site.0to1.cf/). Heic/heif file compatibility drived by [heic-to](https://github.com/hoppergee/heic-to).
+UI inspired by [video-dark2light-ffmpeg](https://github.com/The-Best-Codes/video-dark2light-ffmpeg). The motion photo parse and generate algorithm was modified from [https://motion-photo-parser.site.0to1.cf](https://motion-photo-parser.site.0to1.cf/). Heic/heif file compatibility drived by [heic-to](https://github.com/hoppergee/heic-to).
 
 You can find deployed version at the URL below:
 

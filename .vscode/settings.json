@@ -2,8 +2,8 @@
     "i18n-ally.localesPaths": [
         "src/lang"
     ],
-    "i18n-ally.sourceLanguage": "english",
+    "i18n-ally.sourceLanguage": "en",
     "i18n-ally.displayLanguage": "zh-hans",
     "i18n-ally.keystyle": "nested",
-    "i18n-ally.extract.autoDetect": false
+    "i18n-ally.extract.autoDetect": false,
 }

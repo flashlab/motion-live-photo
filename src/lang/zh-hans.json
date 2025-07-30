@@ -15,14 +15,20 @@
       "videoCodec": "⚠️ 视频无法播放！尝试转码解决可能的编码问题",
       "upload": "⚠️ 无法传输",
       "motionCreate": "❌ 无法生成实况照片！查看日志获取更多信息。",
-      "wasm": "加载 ffmpeg 核心库失败！",
-      "pasteConf": "⚠️ 无法读取剪切板："
+      "wasm": "❌ 加载 ffmpeg 核心库失败！",
+      "pasteConf": "⚠️ 无法读取剪切板：",
+      "createMotionExt": "❌ 缺少图片或非 jpg/jpeg 格式。",
+      "transcodeVideo": "❌ 视频转码失败，尝试重新加载 ffmpeg 或调整参数。",
+      "transcodeImage": "❌ 图片转码失败！准备重新加载 ffmpeg wasm。"
     },
     "videoLoad": "🚀 视频文件已加载",
     "renamed": "🚀 文件名已修改：",
     "heicDetect": "📣 检测到 HEIC 文件，正在下载 JS 库",
     "motionCreate": "🚀 成功生成实况照片，可下载或上传。",
-    "transfered": "🚀 传输完成："
+    "transfered": "🚀 传输完成：",
+    "transcodeDone": "🚀 转码成功，可预览实况照片。",
+    "extractStamp": "🚀 实况照片图像时间戳已更新。",
+    "wasmLoaded": "🚀 ffmpeg wasm 已加载。"
   },
   "btn": {
     "wasm": "加载核心",
@@ -75,12 +81,13 @@
     "transcode": "转码",
     "editCmd": "手动调参⚠️",
     "requestDl": "下载替换",
-    "requestUp": "上传"
+    "requestUp": "上传",
+    "default": "默认"
   },
   "tips": {
     "imagePrior": "图片优先级：原生实况 > 转换的 > 原始的",
     "videoPrior": "视频优先级：转换的 > 原始的",
-    "motiontips": "因 Exif 兼容性，建议只替换原生实况照片的视频部分",
+    "motiontips": "仅支持 jpg 图片合成，建议只替换原生实况照片的视频部分",
     "createMotion": "生成前请确认视频长度和时间戳",
     "cutVideo": "默认值为当前进度(秒)，ffmpeg 用于截图",
     "multiCore": "多线程速度更快但不稳定，转码失败时可尝试",

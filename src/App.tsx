@@ -44,11 +44,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
-import {
-  LivePhoto,
-  LivePhotoIcon,
-  defaultXmpString,
-} from "@/components/LivePhoto";
+import { LivePhoto, LivePhotoIcon, XmpStrings } from "@/components/LivePhoto";
 import { PixBox, InputBtn, UpOpt } from "@/components/widget";
 import { useToast } from "@/hooks/use-toast";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
@@ -97,6 +93,8 @@ interface MotionData {
   hasXmp: boolean;
   hasExtraXmp: boolean;
   stamp?: number;
+  model?: string;
+  xy?: MediaDimensions;
 }
 
 import {
@@ -150,7 +148,7 @@ function App() {
   const [convertedVideoUrl, setConvertedVideoUrl] = useState<BlobUrl | null>(
     null
   );
-  const [convertedImageUrl, setconvertedImageUrl] = useState<BlobUrl | null>(
+  const [convertedImageUrl, setConvertedImageUrl] = useState<BlobUrl | null>(
     null
   );
 
@@ -164,12 +162,12 @@ function App() {
   const [maxDimensions, setMaxDimensions] = useState<number[]>(
     loadStorageJson("defaultDimension") ?? defaultDimension
   );
-  const [videoDimension, setVideoDimension] = useState<MediaDimensions | null>(
-    null
-  );
-  const [imageDimension, setImageDimension] = useState<MediaDimensions | null>(
-    null
-  );
+  const [videoDimension, setVideoDimension] = useState<
+    MediaDimensions | undefined
+  >(undefined);
+  const [imageDimension, setImageDimension] = useState<
+    MediaDimensions | undefined
+  >(undefined);
   const newImageDimensions = useMemo(() => {
     return imageDimension
       ? resizeDimensions(
@@ -226,17 +224,18 @@ function App() {
   const [isCoreMT, setIsCoreMT] = useState(
     localStorage.getItem("isCoreMT") === "true" ? true : false
   );
+  const [defaultXmpOpt, setDefaultXmpOpt] = useState<string>("default");
 
-  const defaultXmp = {
-    hasXmp: false,
-    hasExtraXmp: false,
-    xmp: defaultXmpString,
-  };
   const ffmpegRef = useRef(new FFmpeg());
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const imgRef = useRef<HTMLImageElement | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const convertedImageRef = useRef<HTMLImageElement | null>(null);
   const logContainerRef = useRef<HTMLDivElement | null>(null);
-  const motionXmpRef = useRef(defaultXmp);
+  const motionXmpRef = useRef({
+    hasXmp: false,
+    hasExtraXmp: false,
+    xmp: XmpStrings[defaultXmpOpt as keyof typeof XmpStrings],
+  });
 
   const videoTypes = ["mp4", "mov", "webm"];
   const videoMimeTypes = ["video/mp4", "video/quicktime", "video/webm"];
@@ -319,7 +318,9 @@ function App() {
             motionXmpRef.current = {
               hasXmp: data.hasXmp,
               hasExtraXmp: data.hasExtraXmp,
-              xmp: data.xmp || defaultXmpString,
+              xmp:
+                data.xmp ||
+                XmpStrings[defaultXmpOpt as keyof typeof XmpStrings],
             };
             setImageFile({
               blob: data.image,
@@ -355,9 +356,11 @@ function App() {
 
   const cleanMotion = (): void => {
     // reset motionXmpRef except xmp
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { xmp, ...resetKeys } = defaultXmp;
-    motionXmpRef.current = { ...motionXmpRef.current, ...resetKeys };
+    motionXmpRef.current = {
+      hasXmp: false,
+      hasExtraXmp: false,
+      xmp: XmpStrings[defaultXmpOpt as keyof typeof XmpStrings],
+    };
     // clean object
     if (motionPhoto) URL.revokeObjectURL(motionPhoto.url);
     if (convertedMotionPhoto) URL.revokeObjectURL(convertedMotionPhoto.url);
@@ -445,8 +448,8 @@ function App() {
   };
 
   const onLoadedImage = () => {
-    if (!imgRef.current) return;
-    const { naturalWidth, naturalHeight } = imgRef.current;
+    if (!imageRef.current) return;
+    const { naturalWidth, naturalHeight } = imageRef.current;
     setImageDimension({
       width: naturalWidth,
       height: naturalHeight,
@@ -531,7 +534,7 @@ function App() {
     const setter = [
       setImageFile,
       setVideoFile,
-      setconvertedImageUrl,
+      setConvertedImageUrl,
       setConvertedVideoUrl,
     ][index];
     if (!newName) return;
@@ -650,7 +653,7 @@ function App() {
             const blob = reqMode ? (xhr.response as Blob) : new Blob([]);
             if (reqMode) {
               try {
-                const setter = [setconvertedImageUrl, setConvertedVideoUrl][
+                const setter = [setConvertedImageUrl, setConvertedVideoUrl][
                   reqMode - 1
                 ];
                 if (blob.type) {
@@ -736,16 +739,28 @@ function App() {
   };
 
   const handleCreateMotion = () => {
+    // Prior to creating motion photo.
+    const image = motionPhoto || convertedImageUrl || imageFile;
+    let imageXy = imageDimension;
+    if (!image || !["jpg", "jpeg"].includes(image.ext)) {
+      toast({
+        description: t("toast.err.createMotionExt"),
+      });
+      return;
+    } else if (image.tag === "converted" && convertedImageRef.current) {
+      const { naturalWidth, naturalHeight } = convertedImageRef.current;
+      if (naturalWidth && naturalHeight) {
+        imageXy = { width: naturalWidth, height: naturalHeight };
+      }
+    }
     setLoading((prev) => prev | 2);
     motionWorker({
       ...motionXmpRef.current,
       xmp: xmpString, // use textArea value.
-      image:
-        motionPhoto?.blob ??
-        convertedImageUrl?.blob ??
-        imageFile?.blob ??
-        new File([], ""),
+      image: image.blob,
       video: convertedVideoUrl?.blob ?? videoFile?.blob ?? new File([], ""),
+      xy: imageXy,
+      model: defaultXmpOpt,
     })
       .then((data) => {
         setConvertedMotionPhoto({
@@ -775,7 +790,7 @@ function App() {
       .then(() => {
         setCoreLoad(true);
         toast({
-          description: `🚀 Success loading ffmpeg core files`,
+          description: t("toast.wasmLoaded"),
         });
       })
       .catch((err) => {
@@ -841,7 +856,7 @@ function App() {
       setCaptureStamp(extractStamp);
       setXmpString(fixXmp(undefined, undefined, extractStamp));
       toast({
-        description: `🚀 Live photo stamp changed.`,
+        description: t("toast.extractStamp"),
       });
     } else {
       setLoading((prev) => prev | 4);
@@ -944,7 +959,7 @@ function App() {
           img.obj.blob.name.replace(/\.[^.]+?$/, `_conv.${outputImageExt}`),
           { type: imageMimeTypes[convertedImageExt] }
         );
-        setconvertedImageUrl({
+        setConvertedImageUrl({
           blob: imageBlob,
           url: URL.createObjectURL(imageBlob),
           ext: outputImageExt,
@@ -953,7 +968,7 @@ function App() {
       } catch (e) {
         appendLog(`❌ Error transcoding image: ${String(e)}`);
         toast({
-          description: `⚠️ Error transcoding image! Auto reload core`,
+          description: t('toast.err.transcodeImage'),
         });
         // reload wasm on image proceeding err.
         loadWasm();
@@ -1010,7 +1025,7 @@ function App() {
       } catch (e) {
         appendLog(`❌ Error transcoding video: ${String(e)}`);
         toast({
-          description: `⚠️ Error transcoding video! Try resort task.`,
+          description: t('toast.err.transcodeVideo'),
         });
         setProgress(0);
       }
@@ -1019,7 +1034,7 @@ function App() {
     ffmpeg.off("progress", progListener);
     setLoading((prev) => prev & ~4);
     toast({
-      description: `🚀 Finish transcoding, check live photo tab.`,
+      description: t('toast.transcodeDone'),
     });
   };
 
@@ -1071,8 +1086,8 @@ function App() {
     // revoke all images if raw image updated
     return () => {
       if (imageFile) URL.revokeObjectURL(imageFile.url);
-      setImageDimension(null);
-      setconvertedImageUrl(null);
+      setImageDimension(undefined);
+      setConvertedImageUrl(null);
       // setCaptureStamp(-1);
       // setXmpString(motionXmpRef.current.xmp);
     };
@@ -1101,7 +1116,7 @@ function App() {
       if (videoFile) URL.revokeObjectURL(videoFile.url);
       // remove video poster
       if (currentVideoRef) currentVideoRef.poster = "";
-      setVideoDimension(null);
+      setVideoDimension(undefined);
       setConvertedVideoUrl(null);
     };
   }, [videoFile?.url]);
@@ -1292,17 +1307,20 @@ function App() {
                       itemOne={
                         <ReactCompareSliderImage
                           src={imageFile?.url}
-                          ref={imgRef}
+                          ref={imageRef}
                           onLoad={onLoadedImage}
                         />
                       }
                       itemTwo={
-                        <ReactCompareSliderImage src={convertedImageUrl?.url} />
+                        <ReactCompareSliderImage
+                          ref={convertedImageRef}
+                          src={convertedImageUrl?.url}
+                        />
                       }
                     />
                   ) : (
                     <img
-                      ref={imgRef}
+                      ref={imageRef}
                       src={imageFile?.url}
                       onLoad={onLoadedImage}
                     />
@@ -1449,9 +1467,9 @@ function App() {
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <h4 className="text-sm flex gap-1 flex-1">
+                              <h4 className="text-sm flex items-center gap-1 flex-1">
                                 {t("title.scale")}{" "}
-                                <CircleAlert className="!w-3 !h-3" />
+                                <CircleAlert />
                               </h4>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -1516,9 +1534,9 @@ function App() {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <h4 className="text-sm flex gap-1 mb-2">
+                          <h4 className="text-sm flex items-center gap-1 mb-2">
                             {t("title.videoSet")}{" "}
-                            <CircleAlert className="!w-3 !h-3" />
+                            <CircleAlert className="w-4 h-4" />
                           </h4>
                         </TooltipTrigger>
                         <TooltipContent>{t("tips.videoArgs")}</TooltipContent>
@@ -1605,9 +1623,9 @@ function App() {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <h4 className="text-sm flex gap-1 mb-2">
+                          <h4 className="text-sm flex items-center gap-1 mb-2">
                             {t("title.imageSet")}{" "}
-                            <CircleAlert className="!w-3 !h-3" />
+                            <CircleAlert className="w-4 h-4" />
                           </h4>
                         </TooltipTrigger>
                         <TooltipContent>{t("tips.imageArgs")}</TooltipContent>
@@ -1647,7 +1665,7 @@ function App() {
                             <TooltipTrigger asChild>
                               <label>
                                 {t("label.snapshot")}
-                                <CircleAlert size={14} className="inline" />
+                                <CircleAlert size={14} className="inline ml-1" />
                               </label>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -1881,7 +1899,6 @@ function App() {
                     <IconButton
                       onAction={() => {
                         setXmpString("");
-                        motionXmpRef.current = defaultXmp;
                       }}
                       icon={Trash2}
                       actionLabel="Clear"
@@ -1900,7 +1917,39 @@ function App() {
                 <AccordionContent>
                   <div className="grid w-full gap-2 [&_*]:text-xs p-1">
                     <div className="flex justify-between items-center m-0">
-                      <label htmlFor="xmpinput">XMP meta</label>
+                      <div className="flex items-center gap-2">
+                        <label htmlFor="upload-method-switch">XMP meta: </label>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              id="upload-method-switch"
+                              variant="outline"
+                              disabled={(loading & 6) !== 0}
+                              size="icon"
+                              className="h-6 w-16"
+                            >
+                              {t("option." + defaultXmpOpt)}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="min-w-auto **:text-xs">
+                            {Object.keys(XmpStrings).map((opt) => (
+                              <DropdownMenuItem
+                                key={opt}
+                                onClick={() => {
+                                  setDefaultXmpOpt(opt);
+                                  motionXmpRef.current.xmp =
+                                    XmpStrings[opt as keyof typeof XmpStrings];
+                                  setXmpString(
+                                    fixXmp(motionXmpRef.current.xmp)
+                                  );
+                                }}
+                              >
+                                {t("option." + opt)}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -1913,7 +1962,6 @@ function App() {
                       </TooltipProvider>
                     </div>
                     <Textarea
-                      id="xmpinput"
                       rows={8}
                       placeholder="Xmp needed, support google/OPPO/Xiaomi."
                       value={xmpString}
@@ -2178,7 +2226,7 @@ function App() {
                           </span>{" "}
                           /
                           <span className={reqMode ? "" : "opacity-50"}>
-                            {t("option.requestDl")}
+                            {" "}{t("option.requestDl")}
                           </span>
                         </label>
                         <Switch

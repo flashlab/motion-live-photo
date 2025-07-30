@@ -16,13 +16,19 @@
       "upload": "⚠️ Error transfering",
       "motionCreate": "❌ Error create motion photo, check logs for detail.",
       "wasm": "⚠️ Failed to load ffmpeg wasm.",
-      "pasteConf": "⚠️ Error copy logs: "
+      "pasteConf": "⚠️ Error copy logs: ",
+      "createMotionExt": "❌ jpg/jpeg image file needed.",
+      "transcodeVideo": "❌ Error transcoding video! Try reload or adjust parameters.",
+      "transcodeImage": "❌ Error transcoding image! Auto reload wasm."
     },
     "videoLoad": "🚀 Video file loaded.",
     "renamed": "🚀 Success renamed:",
     "heicDetect": "📣 HEIC image detected, loading js module may take some time.",
     "motionCreate": "🚀 Success create motion photo, you can down(up)load.",
-    "transfered": "🚀 Transfered: "
+    "transfered": "🚀 Transfered: ",
+    "transcodeDone": "🚀 Finish transcoding, check live photo tab.",
+    "extractStamp": "🚀 Live photo stamp changed.",
+    "wasmLoaded": "🚀 Success loading ffmpeg core files."
   },
   "btn": {
     "wasm": "Load wasm",
@@ -72,14 +78,17 @@
     "video": "video",
     "image": "image",
     "onlyTimestamp": "Timestamp only",
-    "transcode": "transcode",
+    "transcode": "transcode ",
     "editCmd": "Edit command⚠️",
-    "requestDl": "Fetch and replace"
+    "requestDl": "Fetch and replace",
+    "default": "default",
+    "oppo": "OPPO",
+    "requestUp": "Upload"
   },
   "tips": {
     "imagePrior": "Image priority: raw motion > converted > raw",
     "videoPrior": "Video priority: converted > raw",
-    "motiontips": "Suggest replace video part of motion photo only.",
+    "motiontips": "Only support JPG synthesis, priority to substitute embed video.",
     "createMotion": "Confirm timestamp and video length before create.",
     "cutVideo": "Extract image from video at position (s) with ffmpeg.",
     "multiCore": "Multi-threaded core is faster, but unstable and not supported by all browsers.",
@@ -91,8 +100,8 @@
     "poster": "/poster.webp",
     "apiUrl2": "to mark file extension",
     "imageArgs": "Set ffmpeg params",
-    "uploadtips": "The configurations will be saved to Local Storage if clicking top-right button",
-    "cors": "The CORS issue may exsits while downloading or uploading",
-    "downloadtips": "Cloud conversion need pre-upload, marking the file extension in url is recommended"
+    "uploadtips": "The configurations will be saved to Local Storage if clicking button on top-right.",
+    "cors": "The CORS issue may exsits while downloading or uploading.",
+    "downloadtips": "Cloud conversion need pre-upload, marking the file extension in url is recommended."
   }
 }
