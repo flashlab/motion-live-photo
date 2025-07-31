@@ -108,7 +108,7 @@ import {
   Video,
   ArrowRight,
   Aperture,
-  Trash2,
+  BrushCleaning,
   ImageUpscale,
   SaveAll,
   CircleAlert,
@@ -488,20 +488,40 @@ function App() {
     return Promise.resolve();
   };
 
-  const handlePasteConfig = async () => {
+  const handleCVConfig = async () => {
     try {
       const text = await navigator.clipboard.readText();
       const oldConf: SvrConfig[] = loadStorageJson("serverConfig") ?? [];
-      const config = JSON.parse(text) as SvrConfig[];
-      if (config.length === 0) {
-        throw new Error("Empty configs");
+      let config: SvrConfig[] = [];
+      try {
+        config = JSON.parse(text) as SvrConfig[];
+      } catch {
+        /* empty */
       }
-      if (oldConf.length === 0 || confirm(t("title.pasteConf"))) {
-        setEndPoint(config[0].url ?? "");
-        setEndPointHeader(config[0].headers ?? []);
-        setEndPointBody(config[0].bodys ?? []);
-        setReqMethod(config[0].post || 0);
-        setReqMode(config[0].mode || 0);
+      if (config.length > 0 && !confirm(t("title.readConf"))) {
+        if (oldConf.length === 0 || confirm(t("title.pasteConf"))) {
+          setServerConfig(config);
+          setEndPoint(config[0].url ?? "");
+          setEndPointHeader(config[0].headers ?? []);
+          setEndPointBody(config[0].bodys ?? []);
+          setReqMethod(config[0].post || 0);
+          setReqMode(config[0].mode || 0);
+          localStorage.setItem("serverConfig", JSON.stringify(config));
+          toast({
+            description: t("toast.importConf"),
+          });
+        }
+      } else {
+        if (oldConf.length > 0) {
+          await navigator.clipboard.writeText(
+            localStorage.getItem("serverConfig") || ""
+          );
+          toast({
+            description: t("toast.exportConf"),
+          });
+        } else {
+          throw new Error(t("toast.err.emptyConf"));
+        }
       }
     } catch (err) {
       toast({
@@ -1900,7 +1920,7 @@ function App() {
                       onAction={() => {
                         setXmpString("");
                       }}
-                      icon={Trash2}
+                      icon={BrushCleaning}
                       actionLabel="Clear"
                       successLabel="Cleared"
                     />
@@ -1989,7 +2009,7 @@ function App() {
                   ⚡️{t("title.upload")}
                   <div className="flex ml-auto mr-2 items-center gap-2">
                     <IconButton
-                      onAction={handlePasteConfig}
+                      onAction={handleCVConfig}
                       actionLabel="Paste"
                       successLabel="Pasted"
                     />
@@ -2353,7 +2373,7 @@ function App() {
                   📜{t("title.log")}
                   <div className="flex ml-auto mr-2 items-center gap-2">
                     <IconButton
-                      icon={Trash2}
+                      icon={BrushCleaning}
                       actionLabel="Clear"
                       successLabel="Cleared"
                       onAction={() => setLogMessages([])}

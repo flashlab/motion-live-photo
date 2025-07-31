@@ -16,10 +16,11 @@
       "upload": "⚠️ Error transfering",
       "motionCreate": "❌ Error create motion photo, check logs for detail.",
       "wasm": "⚠️ Failed to load ffmpeg wasm.",
-      "pasteConf": "⚠️ Error copy logs: ",
+      "pasteConf": "⚠️ Error parse clipboard or local storage: ",
       "createMotionExt": "❌ jpg/jpeg image file needed.",
       "transcodeVideo": "❌ Error transcoding video! Try reload or adjust parameters.",
-      "transcodeImage": "❌ Error transcoding image! Auto reload wasm."
+      "transcodeImage": "❌ Error transcoding image! Auto reload wasm.",
+      "emptyConf": "No valid configuration found."
     },
     "videoLoad": "🚀 Video file loaded.",
     "renamed": "🚀 Success renamed:",
@@ -28,7 +29,9 @@
     "transfered": "🚀 Transfered: ",
     "transcodeDone": "🚀 Finish transcoding, check live photo tab.",
     "extractStamp": "🚀 Live photo stamp changed.",
-    "wasmLoaded": "🚀 Success loading ffmpeg core files."
+    "wasmLoaded": "🚀 Success loading ffmpeg core files.",
+    "importConf": "🚀 Success save and update configuration.",
+    "exportConf": "🚀 Configuration copied to clipboard."
   },
   "btn": {
     "wasm": "Load wasm",
@@ -48,9 +51,10 @@
     "motion": "Motion photo Mux (Beta)",
     "videoSet": "Video setting",
     "scale": "Scale",
-    "keepVideo": "⚠ Overlap the imported video?",
+    "keepVideo": "⚠️ Overlap the imported video?",
     "imageSet": "Image setting",
-    "pasteConf": "Overwrite existing server config?"
+    "pasteConf": "⚠️ Overwrite local storage configuration from clipboard?",
+    "readConf": "❓ Read server configuration to clipboard?"
   },
   "label": {
     "multithread": "Multithread",

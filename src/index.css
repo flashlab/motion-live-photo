@@ -135,9 +135,9 @@
     max-height: var(--radix-dropdown-menu-content-available-height);
   }
   .badge-hl-primary {
-    @apply bg-(--color-input) text-(--color-foreground);
+    @apply bg-(--color-input) text-(--color-foreground) hover:bg-primary/20;
   }
   .badge-hl-secondary {
-    @apply bg-(--color-background) text-(--color-foreground);
+    @apply bg-(--color-background) text-(--color-foreground) hover:bg-secondary/20;
   }
 }
