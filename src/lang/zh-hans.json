@@ -31,7 +31,9 @@
     "extractStamp": "🚀 实况照片图像时间戳已更新。",
     "wasmLoaded": "🚀 ffmpeg wasm 已加载。",
     "importConf": "🚀 配置已保存并更新。",
-    "exportConf": "🚀 配置已读取到剪切板。"
+    "exportConf": "🚀 配置已读取到剪切板。",
+    "linkCopied": "🚀 链接已复制到剪切板！",
+    "uploadAborted": "⚠️ 已取消所有上传操作！"
   },
   "btn": {
     "wasm": "加载核心",
@@ -64,7 +66,8 @@
     "keepAudio": "保留音频：",
     "outputFormat": "转码格式：",
     "cutRange": "剪切区间(秒)：",
-    "snapshot": "截取图片"
+    "snapshot": "截取图片",
+    "heicQuality": "heic 质量："
   },
   "option": {
     "heicDerived": "转自 Heic 的",
@@ -86,7 +89,8 @@
     "editCmd": "手动调参⚠️",
     "requestDl": "下载替换",
     "requestUp": "上传",
-    "default": "默认"
+    "default": "默认",
+    "empty": "空空如也"
   },
   "tips": {
     "imagePrior": "图片优先级：原生实况 > 转换的 > 原始的",

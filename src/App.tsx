@@ -123,6 +123,7 @@ import {
   Languages,
   SquarePen,
   WrapText,
+  Link,
 } from "lucide-react";
 
 let fileWorker: Worker | null = null;
@@ -231,6 +232,7 @@ function App() {
   const imageRef = useRef<HTMLImageElement | null>(null);
   const convertedImageRef = useRef<HTMLImageElement | null>(null);
   const logContainerRef = useRef<HTMLDivElement | null>(null);
+  const activeXhrRef = useRef<XMLHttpRequest[]>([]);
   const motionXmpRef = useRef({
     hasXmp: false,
     hasExtraXmp: false,
@@ -249,6 +251,7 @@ function App() {
   const [loading, setLoading] = useState(0); // 0: idle, 1: download wasm, 2: parsing image, 4: ffmpeg, 8: uploading
   const [convertedVideoExt, setConvertedVideoExt] = useState(0); // 0: mp4, 1: mov, 2: webm
   const [convertedImageExt, setConvertedImageExt] = useState(0); // 0: jpg, 1: png, 2: webp
+  const [heicToQuality, setHeicToQuality] = useState(0.8); // 0.0 - 1.0, default 0.8
   const [isConvert, setIsConvert] = useState(3); // 1: image, 2: video, 3: both, 4: edit command
   // 1: image, 2: video, 4: converted image, 8: converted video, 16: motion photo, 32: converted motion photo, 64: heic image
   const [isUpload, setIsUpload] = useState(0);
@@ -292,13 +295,12 @@ function App() {
         setHeicPhoto({ blob: file, url: "", ext: ext, tag: "raw" });
         import("heic-to")
           .then(({ heicTo }) => {
-            // TODO: Customize Heic-to params.
-            heicTo({ blob: file, type: "image/jpeg", quality: 0.8 })
+            heicTo({ blob: file, type: imageMimeTypes[convertedImageExt ? 1 : 0], quality: heicToQuality })
               .then((blob) => {
                 setImageFile({
-                  blob: new File([blob], name + "_heic.jpg"),
+                  blob: new File([blob], `${name}_heic.${imageTypes[convertedImageExt ? 1 : 0]}`),
                   url: URL.createObjectURL(blob),
-                  ext: "jpg",
+                  ext: imageTypes[convertedImageExt ? 1 : 0],
                   tag: "heicDerived",
                 });
                 setMediaTab("image");
@@ -536,6 +538,7 @@ function App() {
     setCurrLang(newLang);
     void i18n.changeLanguage(newLang);
   };
+
   const handleDownload = (media: BlobUrl): void => {
     // TODO: Generate motion photo.
     const link = document.createElement("a");
@@ -544,6 +547,14 @@ function App() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleCopyLink = (media: BlobUrl): void => {
+    navigator.clipboard.writeText(media.blob.name).then(() => {
+      toast({
+        description: t("toast.linkCopied"),
+      });
+    });
   };
 
   const handleRename = (media: BlobUrl, index: number): void => {
@@ -623,8 +634,14 @@ function App() {
 
   const handleUpload = (e: React.FormEvent) => {
     e.preventDefault();
+    if ((loading & 8) !== 0) {
+      handleAbortUploads();
+      return;
+    }
     let uploadCount = 0;
     setProgress(0);
+    activeXhrRef.current = [];
+
     const fileFilter = (
       filelist: (BlobUrl | null)[],
       opt: number
@@ -661,6 +678,8 @@ function App() {
         else formData.append(body.key, body.value);
       }
       const xhr = new XMLHttpRequest();
+      activeXhrRef.current.push(xhr);
+
       const reqPromise = new Promise<void>((resolve, reject) => {
         (reqMethod < 2 ? xhr.upload : xhr).addEventListener("progress", (e) => {
           if (e.lengthComputable)
@@ -718,6 +737,9 @@ function App() {
         xhr.onerror = () => {
           reject(new Error("Network error occurred"));
         };
+        xhr.onabort = () => {
+          reject(new Error("Upload aborted by user"));
+        };
       });
       xhr.open(reqMethods[reqMethod], `${realEndPoint}`, true);
       for (const header of endPointHeader) {
@@ -734,19 +756,44 @@ function App() {
           });
         })
         .catch((err) => {
-          appendLog(`❌ Error uploading ${media.blob.name}: ${err}`);
-          toast({
-            description: `${t("toast.err.upload")} ${
-              reqMode ? "" : media.blob.name
-            }`,
-          });
+          if (err.message === "Upload aborted by user") {
+            appendLog(`⏹️ Upload cancelled: ${media.blob.name}`);
+          } else {
+            appendLog(`❌ Error uploading ${media.blob.name}: ${err}`);
+            toast({
+              description: `${t("toast.err.upload")} ${
+                reqMode ? "" : media.blob.name
+              }`,
+            });
+          }
         })
         .finally(() => {
+          const index = activeXhrRef.current.indexOf(xhr);
+          if (index > -1) {
+            activeXhrRef.current.splice(index, 1);
+          }
           if (++uploadCount >= requestFiles.length)
             setLoading((prev) => prev & ~8);
           setProgress(0);
         });
     }
+  };
+
+  const handleAbortUploads = () => {
+    activeXhrRef.current.forEach(xhr => {
+      if (xhr.readyState !== XMLHttpRequest.DONE) {
+        xhr.abort();
+      }
+    });
+    activeXhrRef.current = [];
+
+    setLoading((prev) => prev & ~8);
+    setProgress(0);
+    
+    appendLog("⚠️ All uploads aborted by user");
+    toast({
+      description: t("toast.uploadAborted"),
+    });
   };
 
   const handlePasteFile = (event: ClipboardEvent<HTMLInputElement>) => {
@@ -973,7 +1020,6 @@ function App() {
       try {
         await runCommand(ffmpegArgs[img.arg]);
         const data = await ffmpeg.readFile(`output.${outputImageExt}`);
-        // TODO: determine image MIME.
         const imageBlob = new File(
           [data],
           img.obj.blob.name.replace(/\.[^.]+?$/, `_conv.${outputImageExt}`),
@@ -1488,8 +1534,7 @@ function App() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <h4 className="text-sm flex items-center gap-1 flex-1">
-                                {t("title.scale")}{" "}
-                                <CircleAlert />
+                                {t("title.scale")} <CircleAlert />
                               </h4>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -1659,7 +1704,7 @@ function App() {
                             <Button
                               variant="outline"
                               size="icon"
-                              className="h-6"
+                              className="h-6 min-w-12"
                             >
                               {imageTypes[convertedImageExt]}
                             </Button>
@@ -1679,13 +1724,29 @@ function App() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
+                      <div className="flex justify-between items-center">
+                        <label>{t("label.heicQuality")}</label>
+                        <Input
+                          type="number"
+                          step={0.1}
+                          value={heicToQuality}
+                          placeholder="1.0"
+                          onChange={(e) =>
+                            setHeicToQuality(e.target.valueAsNumber)
+                          }
+                          className="md:text-xs h-7 w-12 px-1 text-right"
+                        />
+                      </div>
                       <div className="grid gap-1.5">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <label>
                                 {t("label.snapshot")}
-                                <CircleAlert size={14} className="inline ml-1" />
+                                <CircleAlert
+                                  size={14}
+                                  className="inline ml-1"
+                                />
                               </label>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -1884,7 +1945,7 @@ function App() {
                         file.tag !== "raw" && (
                           <DropdownMenuItem
                             key={file.url}
-                            className="[&:hover>svg]:block gap-2"
+                            className="[&:hover>svg]:visible gap-2"
                             onClick={() => handleDownload(file)}
                           >
                             <span className="flex-auto whitespace-nowrap overflow-hidden text-ellipsis">
@@ -1893,7 +1954,7 @@ function App() {
                             </span>
                             <SquarePen
                               size={16}
-                              className="md:hidden hover:bg-card rounded-sm cursor-pointer"
+                              className="md:invisible hover:bg-card rounded-sm cursor-pointer"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleRename(file, i);
@@ -2049,7 +2110,7 @@ function App() {
                       disabled={(loading & 8) !== 0}
                       placeholder={
                         reqMode
-                          ? "https://r2.cf.cn/cdn-cgi/image/format=webp,quality=75,fit=scale-down"
+                          ? "https://r2.cf.cn/cdn-cgi/image/format={webp},quality=75,fit=scale-down"
                           : "https://api.abc.com/upload/{filename}"
                       }
                       options={serverConfig.map(({ url }, i) => ({
@@ -2246,7 +2307,8 @@ function App() {
                           </span>{" "}
                           /
                           <span className={reqMode ? "" : "opacity-50"}>
-                            {" "}{t("option.requestDl")}
+                            {" "}
+                            {t("option.requestDl")}
                           </span>
                         </label>
                         <Switch
@@ -2268,16 +2330,13 @@ function App() {
                         type="submit"
                         className="flex-1 rounded-r-none"
                         disabled={
-                          (loading & 8) !== 0 ||
-                          (isUpload === 0 && reqMode === 0) ||
-                          !isFileSelect
+                          (loading & 8) === 0 && ((isUpload === 0 && reqMode === 0) || !isFileSelect)
                         }
                       >
                         {(loading & 8) !== 0 ? (
                           <>
-                            <UploadIcon className="icon-svg animate-pulse" />
-                            {/* TODO: Manually abort uploading. */}
-                            Processing..
+                            <Loader className="icon-svg animate-spin" />
+                              Abort!
                           </>
                         ) : (
                           <>
@@ -2293,8 +2352,8 @@ function App() {
                               </>
                             )}{" "}
                             (
-                            {isUpload.toString(2).split("1").length - 1 ||
-                              reqMode.toString(2).split("1").length - 1 ||
+                            { reqMode.toString(2).split("1").length - 1 ||
+                              isUpload.toString(2).split("1").length - 1 ||
                               t("btn.noUpload")}
                             )
                           </>
@@ -2351,8 +2410,21 @@ function App() {
                                     key={i}
                                     setter={setIsUpload}
                                   >
-                                    {t(`option.${file.tag ?? "unknown"}`)}{" "}
-                                    {file.ext} ({humanFileSize(file.blob.size)})
+                                    <div className="flex flex-1 gap-2 [&:hover>svg]:visible">
+                                      <span className="flex-auto whitespace-nowrap overflow-hidden text-ellipsis">
+                                        {t(`option.${file.tag ?? "unknown"}`)}{" "}
+                                        {file.ext} (
+                                        {humanFileSize(file.blob.size)})
+                                      </span>
+                                      <Link
+                                        size={16}
+                                        className="md:invisible hover:bg-card rounded-sm cursor-pointer"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleCopyLink(file);
+                                        }}
+                                      />
+                                    </div>
                                   </UpOpt>
                                 )
                             )

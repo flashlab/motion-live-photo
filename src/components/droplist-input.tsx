@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, InputHTMLAttributes } from 'react';
 import { Input } from '@/components/ui/input';
 import { ChevronsUpDown, X } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { t } from 'i18next';
 
 type Option = {
   id: number;
@@ -16,6 +17,7 @@ type DropdownInputProps = {
   onDelete?: (index: number) => void;
   onSelect?: (option: Option) => void;
   withFilter?: boolean; // If true, do not filter options based on input
+  className?: string;
 } & Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'onSelect' | 'value'>;
 
 export default function DropdownInput({
@@ -26,6 +28,7 @@ export default function DropdownInput({
   onDelete,
   onSelect,
   withFilter = false,
+  className = '',
   ...props
 }: DropdownInputProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -75,7 +78,7 @@ export default function DropdownInput({
       <Input
         ref={inputRef}
         type="text"
-        className={cn("pr-10")}
+        className={cn("pr-10", className)}
         value={value}
         disabled={disabled}
         onChange={handleInputChange}
@@ -110,7 +113,7 @@ export default function DropdownInput({
               ))}
             </ul>
           ) : (
-            <div className="px-4 py-2 text-gray-500">No options found</div>
+            <div className="px-4 py-2 text-gray-500">{t("option.empty")}</div>
           )}
         </div>
       )}

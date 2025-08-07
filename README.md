@@ -28,9 +28,8 @@ You can find deployed version at the URL below:
 - [x] Generate motion photo.
 - [x] Split upload and convert state management.
 - [x] Cloud conversion with customed API.
-- [ ] Customize Heic-to params.
-- [ ] Determine image MIME.
-- [ ] Manually abort uploading.
+- [x] Customize Heic-to params.
+- [x] Manually abort uploading.
 - [x] Converted image file type option.
 - [ ] More XMP template.
 

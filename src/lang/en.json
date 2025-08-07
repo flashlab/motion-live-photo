@@ -31,7 +31,9 @@
     "extractStamp": "🚀 Live photo stamp changed.",
     "wasmLoaded": "🚀 Success loading ffmpeg core files.",
     "importConf": "🚀 Success save and update configuration.",
-    "exportConf": "🚀 Configuration copied to clipboard."
+    "exportConf": "🚀 Configuration copied to clipboard.",
+    "linkCopied": "🚀 Link copied to clipboard!",
+    "uploadAborted": "⚠️ Upload aborted!"
   },
   "btn": {
     "wasm": "Load wasm",
@@ -64,7 +66,8 @@
     "keepAudio": "Keep audio:",
     "outputFormat": "Output format:",
     "cutRange": "Cut range(Sec):",
-    "snapshot": "Snapshot"
+    "snapshot": "Snapshot",
+    "heicQuality": "Heic quality:"
   },
   "option": {
     "heicDerived": "Heic derived",
@@ -87,7 +90,8 @@
     "requestDl": "Fetch and replace",
     "default": "default",
     "oppo": "OPPO",
-    "requestUp": "Upload"
+    "requestUp": "Upload",
+    "empty": "no items"
   },
   "tips": {
     "imagePrior": "Image priority: raw motion > converted > raw",
