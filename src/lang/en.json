@@ -56,7 +56,8 @@
     "keepVideo": "⚠️ Overlap the imported video?",
     "imageSet": "Image setting",
     "pasteConf": "⚠️ Overwrite local storage configuration from clipboard?",
-    "readConf": "❓ Read server configuration to clipboard?"
+    "readConf": "❓ Read server configuration to clipboard?",
+    "changeExt": "❓ Modifiy new file extension to: "
   },
   "label": {
     "multithread": "Multithread",
@@ -111,5 +112,8 @@
     "uploadtips": "The configurations will be saved to Local Storage if clicking button on top-right.",
     "cors": "The CORS issue may exsits while downloading or uploading.",
     "downloadtips": "Cloud conversion need pre-upload, marking the file extension in url is recommended."
+  },
+  "link": {
+    "document": "https://blog.zzbd.org/en/motion-live-photo-webui/"
   }
 }

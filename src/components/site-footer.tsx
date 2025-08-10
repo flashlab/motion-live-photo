@@ -1,3 +1,5 @@
+import { t } from "i18next";
+
 export function SiteFooter() {
   return (
     <footer className="border-grid border-t py-2 md:py-0">
@@ -13,7 +15,7 @@ export function SiteFooter() {
             >
               ZZBD
             </a>
-            . Open source on{" "}
+            . Source at{" "}
             <a
               href="https://github.com/flashlab/motion-live-photo"
               target="_blank"
@@ -21,6 +23,15 @@ export function SiteFooter() {
               className="font-medium underline underline-offset-4"
             >
               GitHub
+            </a>
+            . Document at{" "}
+            <a
+              href={t("link.document")}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium underline underline-offset-4"
+            >
+              Blog
             </a>
             .
           </div>

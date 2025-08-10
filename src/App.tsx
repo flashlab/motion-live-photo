@@ -295,10 +295,17 @@ function App() {
         setHeicPhoto({ blob: file, url: "", ext: ext, tag: "raw" });
         import("heic-to")
           .then(({ heicTo }) => {
-            heicTo({ blob: file, type: imageMimeTypes[convertedImageExt ? 1 : 0], quality: heicToQuality })
+            heicTo({
+              blob: file,
+              type: imageMimeTypes[convertedImageExt ? 1 : 0],
+              quality: heicToQuality,
+            })
               .then((blob) => {
                 setImageFile({
-                  blob: new File([blob], `${name}_heic.${imageTypes[convertedImageExt ? 1 : 0]}`),
+                  blob: new File(
+                    [blob],
+                    `${name}_heic.${imageTypes[convertedImageExt ? 1 : 0]}`
+                  ),
                   url: URL.createObjectURL(blob),
                   ext: imageTypes[convertedImageExt ? 1 : 0],
                   tag: "heicDerived",
@@ -672,6 +679,11 @@ function App() {
           ? imageTypes[convertedImageExt]
           : videoTypes[convertedVideoExt];
       const formData = new FormData();
+      const fileExtMatch = realEndPoint.match(/\{(\w+)\}/);
+      if (fileExtMatch) {
+        fileExt = fileExtMatch[1];
+        realEndPoint = realEndPoint.replace(`{${fileExt}}`, fileExt);
+      }
       for (const body of endPointBody) {
         if (body.value === "{File}")
           formData.append(body.key, media.blob, media.blob.name);
@@ -696,19 +708,20 @@ function App() {
                   reqMode - 1
                 ];
                 if (blob.type) {
-                  console.log(blob.type);
-                  const fileExtMatch = (
+                  const blobExtMatch = (
                     reqMode === 1 ? imageMimeTypes : videoMimeTypes
                   ).indexOf(blob.type);
-                  if (fileExtMatch)
-                    fileExt = (reqMode === 1 ? imageTypes : videoTypes)[
-                      fileExtMatch
-                    ];
-                }
-                const fileExtMatch = realEndPoint.match(/\{(\w+)\}/);
-                if (fileExtMatch) {
-                  fileExt = fileExtMatch[1];
-                  realEndPoint = realEndPoint.replace(`{${fileExt}}`, fileExt);
+                  if (blobExtMatch > -1) {
+                    const blobFileExt = (
+                      reqMode === 1 ? imageTypes : videoTypes
+                    )[blobExtMatch];
+                    if (
+                      blobFileExt !== fileExt &&
+                      confirm(t("title.changeExt" + blobFileExt))
+                    ) {
+                      fileExt = blobFileExt;
+                    }
+                  }
                 }
                 setter({
                   blob: new File(
@@ -780,7 +793,7 @@ function App() {
   };
 
   const handleAbortUploads = () => {
-    activeXhrRef.current.forEach(xhr => {
+    activeXhrRef.current.forEach((xhr) => {
       if (xhr.readyState !== XMLHttpRequest.DONE) {
         xhr.abort();
       }
@@ -789,7 +802,7 @@ function App() {
 
     setLoading((prev) => prev & ~8);
     setProgress(0);
-    
+
     appendLog("⚠️ All uploads aborted by user");
     toast({
       description: t("toast.uploadAborted"),
@@ -1019,9 +1032,11 @@ function App() {
       );
       try {
         await runCommand(ffmpegArgs[img.arg]);
-        const data = await ffmpeg.readFile(`output.${outputImageExt}`);
+        const fileData = (await ffmpeg.readFile(
+          `output.${outputImageExt}`
+        )) as Uint8Array<ArrayBuffer>;
         const imageBlob = new File(
-          [data],
+          [fileData],
           img.obj.blob.name.replace(/\.[^.]+?$/, `_conv.${outputImageExt}`),
           { type: imageMimeTypes[convertedImageExt] }
         );
@@ -1034,7 +1049,7 @@ function App() {
       } catch (e) {
         appendLog(`❌ Error transcoding image: ${String(e)}`);
         toast({
-          description: t('toast.err.transcodeImage'),
+          description: t("toast.err.transcodeImage"),
         });
         // reload wasm on image proceeding err.
         loadWasm();
@@ -1050,9 +1065,11 @@ function App() {
           // pre excute with meaningless command to solve mp4-to-jpg error.
           await runCommand(ffmpegArgs[0]);
           await runCommand(ffmpegArgs[3]);
-          const data = await ffmpeg.readFile(`extract.${outputImageExt}`);
+          const fileData = (await ffmpeg.readFile(
+            `extract.${outputImageExt}`
+          )) as Uint8Array<ArrayBuffer>;
           const extBlob = new File(
-            [data],
+            [fileData],
             film.obj.blob.name.replace(/\.[^.]+?$/, `_cut.${outputImageExt}`),
             { type: imageMimeTypes[convertedImageExt] }
           );
@@ -1065,9 +1082,11 @@ function App() {
           setCaptureStamp(extractStamp);
         } else {
           await runCommand(ffmpegArgs[film.arg]);
-          const data = await ffmpeg.readFile(`output.${outputVideoExt}`);
+          const fileData = (await ffmpeg.readFile(
+            `output.${outputVideoExt}`
+          )) as Uint8Array<ArrayBuffer>;
           const videoBlob = new File(
-            [data],
+            [fileData],
             film.obj.blob.name.replace(
               /(\.[^.]+)?$/,
               `output.${outputVideoExt}`
@@ -1091,7 +1110,7 @@ function App() {
       } catch (e) {
         appendLog(`❌ Error transcoding video: ${String(e)}`);
         toast({
-          description: t('toast.err.transcodeVideo'),
+          description: t("toast.err.transcodeVideo"),
         });
         setProgress(0);
       }
@@ -1100,7 +1119,7 @@ function App() {
     ffmpeg.off("progress", progListener);
     setLoading((prev) => prev & ~4);
     toast({
-      description: t('toast.transcodeDone'),
+      description: t("toast.transcodeDone"),
     });
   };
 
@@ -2110,7 +2129,7 @@ function App() {
                       disabled={(loading & 8) !== 0}
                       placeholder={
                         reqMode
-                          ? "https://r2.cf.cn/cdn-cgi/image/format={webp},quality=75,fit=scale-down"
+                          ? "https://r2.cf.com/cdn-cgi/image/format={webp},quality=75,fit=scale-down/{filename}"
                           : "https://api.abc.com/upload/{filename}"
                       }
                       options={serverConfig.map(({ url }, i) => ({
@@ -2330,13 +2349,14 @@ function App() {
                         type="submit"
                         className="flex-1 rounded-r-none"
                         disabled={
-                          (loading & 8) === 0 && ((isUpload === 0 && reqMode === 0) || !isFileSelect)
+                          (loading & 8) === 0 &&
+                          ((isUpload === 0 && reqMode === 0) || !isFileSelect)
                         }
                       >
                         {(loading & 8) !== 0 ? (
                           <>
                             <Loader className="icon-svg animate-spin" />
-                              Abort!
+                            Abort!
                           </>
                         ) : (
                           <>
@@ -2352,7 +2372,7 @@ function App() {
                               </>
                             )}{" "}
                             (
-                            { reqMode.toString(2).split("1").length - 1 ||
+                            {reqMode.toString(2).split("1").length - 1 ||
                               isUpload.toString(2).split("1").length - 1 ||
                               t("btn.noUpload")}
                             )
