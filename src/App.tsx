@@ -1223,7 +1223,7 @@ function App() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <h2 className="flex-1">
-              📸 {t("title.head")} <sup>2025</sup>
+              📸 {t("title.head")} <sup>v1.0</sup>
             </h2>
             <Button
               variant="outline"
