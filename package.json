@@ -60,6 +60,7 @@
     "react-day-picker": "^9.8.1",
     "react-dom": "^19.1.1",
     "react-dropzone": "^14.3.8",
+    "react-easy-crop": "^5.5.0",
     "react-hook-form": "^7.61.1",
     "react-i18next": "^15.6.1",
     "react-resizable-panels": "^2.1.9",

@@ -20,14 +20,15 @@
       "createMotionExt": "❌ 缺少图片或非 jpg/jpeg 格式。",
       "transcodeVideo": "❌ 视频转码失败，尝试重新加载 ffmpeg 或调整参数。",
       "transcodeImage": "❌ 图片转码失败！准备重新加载 ffmpeg wasm。",
-      "emptyConf": "不存在有效的配置信息。"
+      "emptyConf": "不存在有效的配置信息。",
+      "scaleNotMatch": "⚠️ 视频与图像长宽比不同，忽略视频裁剪！或先截取图片后操作。"
     },
     "videoLoad": "🚀 视频文件已加载",
     "renamed": "🚀 文件名已修改：",
     "heicDetect": "📣 检测到 HEIC 文件，正在下载 JS 库",
     "motionCreate": "🚀 成功生成实况照片，可下载或上传。",
     "transfered": "🚀 传输完成：",
-    "transcodeDone": "🚀 转码成功，可预览实况照片。",
+    "transcodeDone": "🚀 转码结束。",
     "extractStamp": "🚀 实况照片图像时间戳已更新。",
     "wasmLoaded": "🚀 ffmpeg wasm 已加载。",
     "importConf": "🚀 配置已保存并更新。",
@@ -57,7 +58,8 @@
     "imageSet": "图片转码设置",
     "pasteConf": "⚠️ 是否使用剪切板内容覆盖本地配置？",
     "readConf": "❓ 是否读取服务器配置到剪切板？",
-    "changeExt": "❓ 是否修正文件后缀到："
+    "changeExt": "❓ 是否修正文件后缀到：",
+    "convertImageReset": "⚠️ 是否清除已转换的图像？"
   },
   "label": {
     "multithread": "多线程",
@@ -68,7 +70,9 @@
     "outputFormat": "转码格式：",
     "cutRange": "剪切区间(秒)：",
     "snapshot": "截取图片",
-    "heicQuality": "heic 质量："
+    "heicQuality": "heic 质量：",
+    "enableCrop": "启用裁切",
+    "noCrop": "只旋转："
   },
   "option": {
     "heicDerived": "转自 Heic 的",
@@ -110,7 +114,8 @@
     "imageArgs": "设置视频转码参数",
     "uploadtips": "点击右上角保存按钮将以明文形式储存于浏览器本地",
     "cors": "请自行解决跨域问题",
-    "downloadtips": "云端转换需要提前上传，建议在 url 中标记文件后缀"
+    "downloadtips": "云端转换需要提前上传，建议在 url 中标记文件后缀",
+    "setCrop": "视频默认与图像同步裁切"
   },
   "link": {
     "document": "https://blog.zzbd.org/motion-live-photo-webui/"

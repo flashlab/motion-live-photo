@@ -45,7 +45,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { LivePhoto, LivePhotoIcon, XmpStrings } from "@/components/LivePhoto";
-import { PixBox, InputBtn, UpOpt } from "@/components/widget";
+import { InputBtn, UpOpt } from "@/components/widget";
 import { useToast } from "@/hooks/use-toast";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
@@ -60,6 +60,8 @@ import {
   ReactCompareSlider,
   ReactCompareSliderImage,
 } from "react-compare-slider";
+import { MyCropper } from "@/components/cropper";
+import type { Area } from "react-easy-crop";
 
 interface MediaDimensions {
   width: number;
@@ -112,8 +114,6 @@ import {
   ImageUpscale,
   SaveAll,
   CircleAlert,
-  MoveHorizontal,
-  MoveVertical,
   Expand,
   Camera,
   Clapperboard,
@@ -159,6 +159,12 @@ function App() {
   const [stopStamp, setStopStamp] = useState<number>(NaN);
   const [xmpString, setXmpString] = useState<string>("");
 
+  const [enableCrop, setEnableCrop] = useState(false);
+  const [onlyRotate, setOnlyRotate] = useState(false);
+  const [newAspectRatio, setNewAspectRatio] = useState<number>(0);
+  const [croppedArea, setCroppedArea] = useState<Area | null>(null);
+  const [rotateOrder, setRotateOrder] = useState<number[]>([]);
+
   const defaultDimension = [1008, 1344, 720, 960];
   const [maxDimensions, setMaxDimensions] = useState<number[]>(
     loadStorageJson("defaultDimension") ?? defaultDimension
@@ -175,20 +181,22 @@ function App() {
           imageDimension.width,
           imageDimension.height,
           maxDimensions?.at(0) || 0,
-          maxDimensions?.at(1) || 0
+          maxDimensions?.at(1) || 0,
+          !onlyRotate && newAspectRatio
         )
       : null;
-  }, [imageDimension, maxDimensions]);
+  }, [imageDimension, maxDimensions, newAspectRatio, onlyRotate]);
   const newVideoDimensions = useMemo(() => {
     return videoDimension
       ? resizeDimensions(
           videoDimension.width,
           videoDimension.height,
           maxDimensions?.at(2) || 0,
-          maxDimensions?.at(3) || 0
+          maxDimensions?.at(3) || 0,
+          !onlyRotate && newAspectRatio
         )
       : null;
-  }, [videoDimension, maxDimensions]);
+  }, [videoDimension, maxDimensions, newAspectRatio, onlyRotate]);
 
   const reqMethods = ["POST", "PUT", "DELETE", "GET"];
   const [serverConfig, setServerConfig] = useState<SvrConfig[]>(
@@ -547,7 +555,6 @@ function App() {
   };
 
   const handleDownload = (media: BlobUrl): void => {
-    // TODO: Generate motion photo.
     const link = document.createElement("a");
     link.href = media.url;
     link.download = media.blob.name;
@@ -556,8 +563,8 @@ function App() {
     document.body.removeChild(link);
   };
 
-  const handleCopyLink = (media: BlobUrl): void => {
-    navigator.clipboard.writeText(media.blob.name).then(() => {
+  const handleCopyLink = (media: BlobUrl): Promise<void> => {
+    return navigator.clipboard.writeText(media.blob.name).then(() => {
       toast({
         description: t("toast.linkCopied"),
       });
@@ -768,7 +775,7 @@ function App() {
             description: t("toast.transfered") + reqMode ? "" : media.blob.name,
           });
         })
-        .catch((err) => {
+        .catch((err: Error) => {
           if (err.message === "Upload aborted by user") {
             appendLog(`⏹️ Upload cancelled: ${media.blob.name}`);
           } else {
@@ -962,6 +969,15 @@ function App() {
       return ffmpeg.terminate();
     }
 
+    let mediaScale = 0;
+    const shouldCrop = !onlyRotate && croppedArea;
+
+    if (imageDimension && videoDimension) {
+      const widthRatio = videoDimension.width / imageDimension.width;
+      const heightRatio = videoDimension.height / imageDimension.height;
+      if (widthRatio === heightRatio) mediaScale = widthRatio;
+    }
+
     const outputVideoExt = videoTypes[convertedVideoExt];
     const outputImageExt = imageTypes[convertedImageExt];
     const argsHead = ["-v", "level+verbose", "-y"];
@@ -971,9 +987,17 @@ function App() {
         "-i",
         `input.${img?.obj?.ext}`,
         "-vf",
-        `scale=min(${maxDimensions?.at(0) || 99999}\\,iw):min(${
-          maxDimensions?.at(1) || 99999
-        }\\,ih):force_original_aspect_ratio=decrease`,
+        [
+          rotateOrder.map((r) => `transpose=${r}`).join(","),
+          shouldCrop
+            ? `crop=${croppedArea.width}:${croppedArea.height}:${croppedArea.x}:${croppedArea.y}`
+            : "",
+          `scale=min(${maxDimensions?.at(0) || 99999}\\,iw):min(${
+            maxDimensions?.at(1) || 99999
+          }\\,ih):force_original_aspect_ratio=decrease`,
+        ]
+          .filter(Boolean)
+          .join(","),
         `output.${outputImageExt}`,
       ],
       [
@@ -981,12 +1005,20 @@ function App() {
         ...(stopStamp ? ["-t", (stopStamp - beginStamp).toFixed(3)] : []),
         "-i",
         `input.${film?.obj?.ext}`,
-        ...[
-          "-vf",
+        "-vf",
+        [
+          rotateOrder.map((r) => `transpose=${r}`).join(","),
+          shouldCrop && mediaScale
+            ? `crop=${croppedArea.width * mediaScale}:${
+                croppedArea.height * mediaScale
+              }:${croppedArea.x * mediaScale}:${croppedArea.y * mediaScale}`
+            : "",
           `scale=min(${maxDimensions?.at(2) || 99999}\\,iw):min(${
             maxDimensions?.at(3) || 99999
           }\\,ih):force_original_aspect_ratio=decrease`,
-        ],
+        ]
+          .filter(Boolean)
+          .join(","),
         ...(outputVideoExt === "webm"
           ? ["-c:v", "libvpx", "-crf", "10", "-b:v", "10M"]
           : ["-c:v", "libx264", "-crf", "18"]),
@@ -1081,7 +1113,13 @@ function App() {
           });
           setCaptureStamp(extractStamp);
         } else {
+          if (shouldCrop && !mediaScale) {
+            toast({
+              description: t("toast.err.scaleNotMatch"),
+            });
+          }
           await runCommand(ffmpegArgs[film.arg]);
+
           const fileData = (await ffmpeg.readFile(
             `output.${outputVideoExt}`
           )) as Uint8Array<ArrayBuffer>;
@@ -1216,6 +1254,14 @@ function App() {
       if (convertedVideoUrl) URL.revokeObjectURL(convertedVideoUrl.url);
     };
   }, [convertedVideoUrl?.url]);
+
+  useEffect(() => {
+    return () => {
+      setNewAspectRatio(0);
+      setCroppedArea(null);
+      setRotateOrder([]);
+    };
+  }, [enableCrop]);
 
   return (
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
@@ -1403,6 +1449,13 @@ function App() {
                         />
                       }
                     />
+                  ) : enableCrop ? (
+                    <MyCropper
+                      imageUrl={imageFile?.url}
+                      onAspectUpdate={setNewAspectRatio}
+                      onCropUpdate={setCroppedArea}
+                      onRotateUpdate={setRotateOrder}
+                    />
                   ) : (
                     <img
                       ref={imageRef}
@@ -1546,7 +1599,7 @@ function App() {
                       <ImageUpscale />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-40 [&_.lucide]:w-4 [&_.lucide]:h-4">
+                  <PopoverContent className="w-45 [&_.lucide]:w-4 [&_.lucide]:h-4 [&_input]:md:text-xs">
                     <div className="grid gap-4">
                       <div className="flex items-center space-x-2">
                         <TooltipProvider>
@@ -1570,39 +1623,74 @@ function App() {
                           onClick={() => setMaxDimensions(defaultDimension)}
                         />
                       </div>
-                      <div className="grid gap-2">
-                        <PixBox
-                          labelid="iwidth"
-                          value={maxDimensions?.at(0) || 0}
-                          onChange={(e) => onSetDimensions(e, 0)}
-                        >
+                      <div className="grid gap-2 [&_svg]:flex-none">
+                        <div className="flex items-center gap-1">
                           <Aperture />
-                          <MoveHorizontal />
-                        </PixBox>
-                        <PixBox
-                          labelid="iheight"
-                          value={maxDimensions?.at(1) || 0}
-                          onChange={(e) => onSetDimensions(e, 1)}
-                        >
-                          <Aperture />
-                          <MoveVertical />
-                        </PixBox>
-                        <PixBox
-                          labelid="vwidth"
-                          value={maxDimensions?.at(2) || 0}
-                          onChange={(e) => onSetDimensions(e, 2)}
-                        >
+                          <Input
+                            id="iwidth"
+                            type="number"
+                            onChange={(e) => onSetDimensions(e, 0)}
+                            value={maxDimensions?.at(0) || 0}
+                            className="h-7 px-1"
+                          />
+                          x
+                          <Input
+                            id="iheight"
+                            type="number"
+                            onChange={(e) => onSetDimensions(e, 1)}
+                            value={maxDimensions?.at(1) || 0}
+                            className="h-7 px-1"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1">
                           <Video />
-                          <MoveHorizontal />
-                        </PixBox>
-                        <PixBox
-                          labelid="vheight"
-                          value={maxDimensions?.at(3) || 0}
-                          onChange={(e) => onSetDimensions(e, 3)}
-                        >
-                          <Video />
-                          <MoveVertical />
-                        </PixBox>
+                          <Input
+                            id="vwidth"
+                            type="number"
+                            onChange={(e) => onSetDimensions(e, 2)}
+                            value={maxDimensions?.at(2) || 0}
+                            className="h-7 px-1"
+                          />
+                          x
+                          <Input
+                            id="vheight"
+                            type="number"
+                            onChange={(e) => onSetDimensions(e, 3)}
+                            value={maxDimensions?.at(3) || 0}
+                            className="h-7 px-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex text-sm items-center">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <h4 className="text-sm flex items-center gap-1 flex-1">
+                                {t("label.enableCrop")} <CircleAlert />
+                              </h4>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("tips.setCrop")}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <Switch
+                          checked={enableCrop}
+                          onCheckedChange={(checked) => {
+                            setEnableCrop(checked);
+                            if (
+                              convertedImageUrl &&
+                              confirm(t("title.convertImageReset"))
+                            ) {
+                              setConvertedImageUrl(null);
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="flex justify-between items-center text-sm">
+                        <label>{t("label.noCrop")}</label>
+                        <Switch
+                          checked={onlyRotate}
+                          onCheckedChange={(checked) => setOnlyRotate(checked)}
+                        />
                       </div>
                     </div>
                   </PopoverContent>
@@ -1626,7 +1714,7 @@ function App() {
                         <TooltipContent>{t("tips.videoArgs")}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    <div className="grid gap-2 **:text-xs">
+                    <div className="grid gap-2 text-xs">
                       <div className="flex justify-between items-center">
                         <label>{t("label.keepAudio")}</label>
                         <Switch
@@ -1648,18 +1736,19 @@ function App() {
                             <Button
                               variant="outline"
                               size="icon"
-                              className="h-6"
+                              className="h-6 text-xs"
                             >
                               {videoTypes[convertedVideoExt]}
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent
-                            className="min-w-auto **:text-xs"
+                            className="min-w-auto"
                             align="end"
                           >
-                            {[...videoTypes].map((type, i) => (
+                            {videoTypes.map((type, i) => (
                               <DropdownMenuItem
                                 key={type}
+                                className="text-xs"
                                 onClick={() => setConvertedVideoExt(i)}
                               >
                                 {type}
@@ -1715,7 +1804,7 @@ function App() {
                         <TooltipContent>{t("tips.imageArgs")}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    <div className="grid gap-2 **:text-xs">
+                    <div className="grid gap-2 text-xs">
                       <div className="flex justify-between items-center">
                         <label>{t("label.outputFormat")}</label>
                         <DropdownMenu>
@@ -1723,18 +1812,19 @@ function App() {
                             <Button
                               variant="outline"
                               size="icon"
-                              className="h-6 min-w-12"
+                              className="h-6 min-w-12 text-xs"
                             >
                               {imageTypes[convertedImageExt]}
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent
                             align="end"
-                            className="min-w-auto **:text-xs"
+                            className="min-w-auto"
                           >
-                            {[...imageTypes].map((type, i) => (
+                            {imageTypes.map((type, i) => (
                               <DropdownMenuItem
                                 key={type}
+                                className="text-xs"
                                 onClick={() => setConvertedImageExt(i)}
                               >
                                 {type}
@@ -1753,7 +1843,7 @@ function App() {
                           onChange={(e) =>
                             setHeicToQuality(e.target.valueAsNumber)
                           }
-                          className="md:text-xs h-7 w-12 px-1 text-right"
+                          className="md:text-xs h-6 w-12 px-1 text-right"
                         />
                       </div>
                       <div className="grid gap-1.5">
@@ -2308,7 +2398,7 @@ function App() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent className="min-w-auto **:text-xs">
-                            {[...reqMethods].map((method, i) => (
+                            {reqMethods.map((method, i) => (
                               <DropdownMenuItem
                                 key={method}
                                 onClick={() => setReqMethod(i)}
@@ -2441,7 +2531,7 @@ function App() {
                                         className="md:invisible hover:bg-card rounded-sm cursor-pointer"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          handleCopyLink(file);
+                                          void handleCopyLink(file);
                                         }}
                                       />
                                     </div>
