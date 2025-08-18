@@ -18,7 +18,7 @@
       "wasm": "❌ 加载 ffmpeg 核心库失败！",
       "pasteConf": "⚠️ 剪切板或本地配置可能有误：",
       "createMotionExt": "❌ 缺少图片或非 jpg/jpeg 格式。",
-      "transcodeVideo": "❌ 视频转码失败，尝试重新加载 ffmpeg 或调整参数。",
+      "transcodeVideo": "❌ FFmpeg 视频任务失败，请尝试重新加载或调整参数。",
       "transcodeImage": "❌ 图片转码失败！准备重新加载 ffmpeg wasm。",
       "emptyConf": "不存在有效的配置信息。",
       "scaleNotMatch": "⚠️ 视频与图像长宽比不同，忽略视频裁剪！或先截取图片后操作。"
@@ -28,7 +28,7 @@
     "heicDetect": "📣 检测到 HEIC 文件，正在下载 JS 库",
     "motionCreate": "🚀 成功生成实况照片，可下载或上传。",
     "transfered": "🚀 传输完成：",
-    "transcodeDone": "🚀 转码结束。",
+    "transcodeDone": "🚀 ffmpeg 任务结束。",
     "extractStamp": "🚀 实况照片图像时间戳已更新。",
     "wasmLoaded": "🚀 ffmpeg wasm 已加载。",
     "importConf": "🚀 配置已保存并更新。",
@@ -44,7 +44,8 @@
     "noUpload": "请先下拉选中",
     "snapshot": "截取",
     "ffmpeg": "转码（FFmpeg）",
-    "download": "下载替换"
+    "download": "下载替换",
+    "ffprobe": "获取视频尺寸"
   },
   "title": {
     "upload": "上传 & 云转码",
@@ -104,7 +105,7 @@
     "createMotion": "生成前请确认视频长度和时间戳",
     "cutVideo": "默认值为当前进度(秒)，ffmpeg 用于截图",
     "multiCore": "多线程速度更快但不稳定，转码失败时可尝试",
-    "videoArgs": "设置视频转码参数，点击按钮录入当前时间戳",
+    "videoArgs": "设置视频转码参数，点击图标录入当前时间戳",
     "setPixel": "设置最大长宽，右方按钮可不修改或重置值",
     "use": "使用",
     "apiUrl": "替换 url 中的文件名；",

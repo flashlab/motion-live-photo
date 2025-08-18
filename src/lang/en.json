@@ -18,7 +18,7 @@
       "wasm": "⚠️ Failed to load ffmpeg wasm.",
       "pasteConf": "⚠️ Error parse clipboard or local storage: ",
       "createMotionExt": "❌ jpg/jpeg image file needed.",
-      "transcodeVideo": "❌ Error transcoding video! Try reload or adjust parameters.",
+      "transcodeVideo": "❌ Error on ffmpeg video task! Try reload or adjust parameters.",
       "transcodeImage": "❌ Error transcoding image! Auto reload wasm.",
       "emptyConf": "No valid configuration found.",
       "scaleNotMatch": "⚠️  Different aspect ratio between image and video, ignore video crop! Snapshot image first."
@@ -28,7 +28,7 @@
     "heicDetect": "📣 HEIC image detected, loading js module may take some time.",
     "motionCreate": "🚀 Success create motion photo, you can down(up)load.",
     "transfered": "🚀 Transfered: ",
-    "transcodeDone": "🚀 Finish transcoding.",
+    "transcodeDone": "🚀 FFmpeg task Finished.",
     "extractStamp": "🚀 Live photo stamp changed.",
     "wasmLoaded": "🚀 Success loading ffmpeg core files.",
     "importConf": "🚀 Success save and update configuration.",
@@ -44,7 +44,8 @@
     "noUpload": "select on drop menu",
     "snapshot": "Snapshot",
     "ffmpeg": "Transcode (FFmpeg)",
-    "download": "下载"
+    "download": "下载",
+    "ffprobe": "Get video size"
   },
   "title": {
     "upload": "Upload & Cloud convert",
@@ -105,7 +106,7 @@
     "createMotion": "Confirm timestamp and video length before create.",
     "cutVideo": "Extract image from video at position (s) with ffmpeg.",
     "multiCore": "Multi-threaded core is faster, but unstable and not supported by all browsers.",
-    "videoArgs": "Set ffmpeg params, click button to apply current time of video",
+    "videoArgs": "Set ffmpeg params, click icon to apply current time of video",
     "setPixel": "Set max pixels, keep original or reset with buttons on the right",
     "use": "Use",
     "apiUrl": "to represent file name in url;",

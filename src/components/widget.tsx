@@ -1,40 +1,43 @@
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
-import { LucideProps, Camera } from "lucide-react";
+import { LucideProps } from "lucide-react";
 
 export function InputBtn({
   icon: Icon,
   tar,
   setter: Setter,
-  videoRef,
+  onclick,
   placeholder,
+  classinput,
+  classicon,
 }: {
   icon: React.FC<LucideProps>;
   tar: number;
   setter: React.Dispatch<React.SetStateAction<number>>;
-  videoRef: React.RefObject<HTMLVideoElement | null>;
+  onclick?: () => void;
   placeholder?: string;
+  classinput?: string;
+  classicon?: string;
 }) {
   return (
-    <div className="flex gap-2 items-center">
-      <Icon size={15} className="text-gray-500" />
+    <div className="relative">
+      <div
+        className={`absolute left-0 h-full w-6 bg-secondary/70 flex justify-center items-center rounded-l-md text-gray-500 ${
+          onclick ? "cursor-pointer hover:bg-secondary" : ""
+        } ${classicon}`}
+        onClick={onclick}
+      >
+        <Icon size={15} />
+      </div>
       <Input
         type="number"
         step={0.1}
-        className="flex-1 pl-7 -ml-7 h-7 md:text-xs"
         value={tar}
         placeholder={placeholder}
         onChange={(e) => Setter(e.target.valueAsNumber)}
+        className={`md:text-xs h-7 pl-7 ${classinput}`}
         autoComplete="off"
       />
-      <Button
-        className="rounded-full h-7 w-7"
-        size="icon"
-        onClick={() => videoRef.current && Setter(videoRef.current.currentTime)}
-      >
-        <Camera />
-      </Button>
     </div>
   );
 }

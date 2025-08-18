@@ -99,6 +99,20 @@ interface MotionData {
   xy?: MediaDimensions;
 }
 
+interface FFProbeStreamSideData {
+  rotation?: number;
+}
+
+interface FFProbeStream {
+  width?: number;
+  height?: number;
+  side_data_list?: FFProbeStreamSideData[];
+}
+
+interface FFProbeOutput {
+  streams: FFProbeStream[];
+}
+
 import {
   Download,
   UploadIcon,
@@ -124,6 +138,7 @@ import {
   SquarePen,
   WrapText,
   Link,
+  Timer,
 } from "lucide-react";
 
 let fileWorker: Worker | null = null;
@@ -265,6 +280,7 @@ function App() {
   const [isUpload, setIsUpload] = useState(0);
   const [isExtractRaw, setisExtractRaw] = useState(1); // 1: extract from raw, 2: extract from converted, 4: only stamp change
   const [wrapLog, setWrapLog] = useState(false);
+  const [accordionValue, setAccordionValue] = useState<string>("");
   const { t, i18n } = useTranslation();
   const [currLang, setCurrLang] = useState(i18n.language);
   const { toast } = useToast();
@@ -358,7 +374,7 @@ function App() {
                 ext: "mp4",
                 tag: "embed",
               });
-              setCaptureStamp(data.stamp ?? 0);
+              setCaptureStamp((data.stamp ?? 0) / 1000000);
               setMediaTab("video");
             }
             resolve(t("toast.motionLoad"));
@@ -441,10 +457,10 @@ function App() {
           videoLogStart + 25
         );
         const ffHWline = videoLogSlice.find((v) =>
-          /Stream.*?Video.*?,\s\d+x\d+,/.test(v)
+          /Stream.*?Video.*?,\s\d+x\d+/.test(v)
         );
         if (ffHWline) {
-          const ffHW = ffHWline.match(/,\s(\d+)x(\d+),/);
+          const ffHW = ffHWline.match(/,\s(\d+)x(\d+)/);
           const isRotate = videoLogSlice.some((v) =>
             /-90\.00\sdegrees/.test(v)
           );
@@ -955,6 +971,12 @@ function App() {
     }
   };
 
+  const getVideoDimension = () => {
+    if (!videoFile) return;
+    setLoading((prev) => prev | 4);
+    void ffexec({ obj: null, arg: 0 }, { obj: videoFile, arg: 4 });
+  };
+
   const ffexec = async (
     img: { obj: BlobUrl | null; arg: number },
     film: { obj: BlobUrl | null; arg: number }
@@ -1001,8 +1023,10 @@ function App() {
         `output.${outputImageExt}`,
       ],
       [
-        ...(beginStamp ? ["-ss", beginStamp.toFixed(3)] : []),
-        ...(stopStamp ? ["-t", (stopStamp - beginStamp).toFixed(3)] : []),
+        ...(beginStamp > 0 ? ["-ss", beginStamp.toFixed(3)] : []),
+        ...(stopStamp > 0
+          ? ["-t", (stopStamp - (beginStamp > 0 ? beginStamp : 0)).toFixed(3)]
+          : []),
         "-i",
         `input.${film?.obj?.ext}`,
         "-vf",
@@ -1028,7 +1052,7 @@ function App() {
       ],
       [
         "-ss",
-        (extractStamp / 1000000).toFixed(3),
+        extractStamp.toFixed(3),
         "-i",
         `input.${film?.obj?.ext}`,
         "-frames:v",
@@ -1036,6 +1060,17 @@ function App() {
         "-update",
         "1",
         `extract.${outputImageExt}`,
+      ],
+      [
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream",
+        "-of",
+        "json",
+        `input.${film?.obj?.ext}`,
+        "-o",
+        "output.txt",
       ],
     ];
 
@@ -1047,9 +1082,9 @@ function App() {
     const progListener = ({ progress: prog }: { progress: number }) => {
       setProgress(Math.round(Math.min(100, prog * 100)));
     };
-    const runCommand = async (args: string[]) => {
-      await ffmpeg.exec([
-        ...argsHead,
+    const runCommand = async (args: string[], isProbe?: boolean) => {
+      await ffmpeg[isProbe ? "ffprobe" : "exec"]([
+        ...(isProbe ? ["-v", "error"] : argsHead),
         ...(((isConvert & 4) !== 0 &&
           prompt("Enter edit command", args.join(" "))?.split(" ")) ||
           args),
@@ -1093,7 +1128,32 @@ function App() {
         await fetchFile(film.obj.blob)
       );
       try {
-        if (film.arg === 3) {
+        if (film.arg === 4) {
+          await runCommand(ffmpegArgs[4], true);
+          const fileText = (await ffmpeg.readFile(
+            "output.txt",
+            "utf8"
+          )) as string;
+          appendLog(fileText);
+          try {
+            const probeData = JSON.parse(fileText) as FFProbeOutput;
+            const stream = probeData.streams?.[0];
+            if (stream) {
+              const rotation = stream.side_data_list?.[0]?.rotation;
+              const width = stream.width;
+              const height = stream.height;
+              if (width && height) {
+                setVideoDimension(
+                  [90, -90, 270, -270].includes(rotation ?? 0)
+                    ? { width: height, height: width }
+                    : { width, height }
+                );
+              }
+            }
+          } catch (err) {
+            throw new Error(`❌ Error parsing ffprobe output: ${String(err)}`);
+          }
+        } else if (film.arg === 3) {
           // pre excute with meaningless command to solve mp4-to-jpg error.
           await runCommand(ffmpegArgs[0]);
           await runCommand(ffmpegArgs[3]);
@@ -1146,7 +1206,7 @@ function App() {
             videoRef.current.src = newfile;
         }
       } catch (e) {
-        appendLog(`❌ Error transcoding video: ${String(e)}`);
+        appendLog(`❌ Error excute ffmpeg on video: ${String(e)}`);
         toast({
           description: t("toast.err.transcodeVideo"),
         });
@@ -1164,7 +1224,7 @@ function App() {
   const fixXmp = (xmpContent?: string, videoSize?: number, stamp?: number) => {
     if (!xmpContent && xmpString) xmpContent = xmpString;
     if (!xmpContent) xmpContent = motionXmpRef.current.xmp;
-    if (!stamp && captureStamp >= 0) stamp = captureStamp;
+    if (!stamp && captureStamp >= 0) stamp = captureStamp * 1000000;
     if (!videoSize)
       videoSize = (convertedVideoUrl ?? videoFile)?.blob.size ?? 0;
     // find OpCamera:VideoLength="..."/GCamera:MicroVideoOffset="..."/Item:Length="..."(after Item:Semantic="MotionPhoto")
@@ -1195,14 +1255,21 @@ function App() {
     setLogMessages((prev) => [...prev, `${getLogTimestamp()} ${msg}`]);
   }
 
-  // Handle auto-scrolling logs
-  useEffect(() => {
+  function scrollLog(force: boolean) {
     const logContainer = logContainerRef.current;
     if (!logContainer) return;
     const { scrollTop, scrollHeight, clientHeight } = logContainer;
-    if (scrollHeight - scrollTop - clientHeight < 50)
+    if (force || scrollHeight - scrollTop - clientHeight < 50)
       logContainer.scrollTop = logContainer.scrollHeight;
+  }
+
+  useEffect(() => {
+    scrollLog(false);
   }, [logMessages]);
+
+  useEffect(() => {
+    scrollLog(accordionValue === "log");
+  }, [accordionValue]);
 
   useEffect(() => {
     if (imageFile) setXmpString(fixXmp());
@@ -1468,7 +1535,7 @@ function App() {
                   <LivePhoto
                     url={convertedImageUrl?.url ?? imageFile?.url}
                     videoUrl={convertedVideoUrl?.url ?? videoFile?.url}
-                    stamp={captureStamp / 1000000}
+                    stamp={captureStamp}
                     aspectRatio={
                       imageDimension
                         ? imageDimension.width / imageDimension.height
@@ -1600,7 +1667,7 @@ function App() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-45 [&_.lucide]:w-4 [&_.lucide]:h-4 [&_input]:md:text-xs">
-                    <div className="grid gap-4">
+                    <div className="grid gap-3">
                       <div className="flex items-center space-x-2">
                         <TooltipProvider>
                           <Tooltip>
@@ -1665,8 +1732,8 @@ function App() {
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <h4 className="text-sm flex items-center gap-1 flex-1">
-                                {t("label.enableCrop")} <CircleAlert />
+                              <h4 className="text-xs flex items-center gap-1 flex-1">
+                                {t("label.enableCrop")} <CircleAlert size={14} />
                               </h4>
                             </TooltipTrigger>
                             <TooltipContent>{t("tips.setCrop")}</TooltipContent>
@@ -1685,7 +1752,7 @@ function App() {
                           }}
                         />
                       </div>
-                      <div className="flex justify-between items-center text-sm">
+                      <div className="flex justify-between items-center text-xs">
                         <label>{t("label.noCrop")}</label>
                         <Switch
                           checked={onlyRotate}
@@ -1702,7 +1769,7 @@ function App() {
                       <Clapperboard />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-40">
+                  <PopoverContent className="w-45">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -1759,20 +1826,51 @@ function App() {
                       </div>
                       <div className="grid gap-1.5">
                         <label>{t("label.cutRange")}</label>
-                        <InputBtn
-                          icon={FlagTriangleLeft}
-                          tar={beginStamp}
-                          setter={setBeginStamp}
-                          videoRef={videoRef}
-                          placeholder="1.23456"
-                        />
-                        <InputBtn
-                          icon={FlagTriangleRight}
-                          tar={stopStamp}
-                          setter={setStopStamp}
-                          videoRef={videoRef}
-                          placeholder="2.34567"
-                        />
+                        <div className="flex [&_input]:pr-1">
+                          <InputBtn
+                            icon={FlagTriangleLeft}
+                            tar={beginStamp}
+                            setter={setBeginStamp}
+                            onclick={() =>
+                              videoRef.current &&
+                              setBeginStamp(videoRef.current.currentTime)
+                            }
+                            placeholder="1.23456"
+                            classinput="rounded-r-none"
+                          />
+                          <InputBtn
+                            icon={FlagTriangleRight}
+                            tar={stopStamp}
+                            setter={setStopStamp}
+                            onclick={() =>
+                              videoRef.current &&
+                              setStopStamp(videoRef.current.currentTime)
+                            }
+                            placeholder="2.34567"
+                            classinput="rounded-l-none"
+                            classicon="rounded-l-none"
+                          />
+                        </div>
+                        <Button
+                          disabled={
+                            !videoFile || !coreLoad || (loading & 6) !== 0
+                          }
+                          onClick={getVideoDimension}
+                          className="h-7"
+                          size="sm"
+                        >
+                          {(loading & 4) !== 0 ? (
+                            <>
+                              <Loader className="icon-svg animate-spin" />
+                              Abort!
+                            </>
+                          ) : (
+                            <>
+                              <RotateCw className="icon-svg" />
+                              {t("btn.ffprobe")}
+                            </>
+                          )}
+                        </Button>
                       </div>
                     </div>
                   </PopoverContent>
@@ -1783,7 +1881,7 @@ function App() {
                   onOpenChange={(open: boolean) => {
                     {
                       if (open && videoRef.current)
-                        setExtractStamp(videoRef.current.currentTime * 1000000);
+                        setExtractStamp(videoRef.current.currentTime);
                     }
                   }}
                 >
@@ -1843,7 +1941,7 @@ function App() {
                           onChange={(e) =>
                             setHeicToQuality(e.target.valueAsNumber)
                           }
-                          className="md:text-xs h-6 w-12 px-1 text-right"
+                          className="md:text-xs h-6 w-12 px-1 text-center"
                         />
                       </div>
                       <div className="grid gap-1.5">
@@ -1863,22 +1961,17 @@ function App() {
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                        <Input
-                          type="number"
-                          step={0.1}
-                          value={extractStamp / 1000000}
+                        <InputBtn
+                          icon={Timer}
+                          tar={extractStamp}
+                          setter={setExtractStamp}
                           placeholder="1.23456"
-                          onChange={(e) =>
-                            setExtractStamp(e.target.valueAsNumber * 1000000)
-                          }
-                          className="md:text-xs h-7"
                         />
                         <div className="flex">
                           <Button
                             disabled={
-                              !isFileSelect ||
-                              (isExtractRaw !== 4 &&
-                                (!coreLoad || (loading & 6) !== 0))
+                              isExtractRaw !== 4 &&
+                              (!videoFile || !coreLoad || (loading & 6) !== 0)
                             }
                             onClick={extractjpg}
                             className="flex-auto rounded-r-none h-7"
@@ -2081,7 +2174,11 @@ function App() {
               <span className="text-xs text-center w-9">{progress}%</span>
             </div>
 
-            <Accordion type="single" collapsible className="mt-2">
+            <Accordion
+              type="single"
+              value={accordionValue}
+              onValueChange={setAccordionValue}
+            >
               <AccordionItem value="motion">
                 <AccordionTrigger>
                   🔅{t("title.motion")}
