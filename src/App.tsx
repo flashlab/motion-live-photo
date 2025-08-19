@@ -2176,6 +2176,7 @@ function App() {
 
             <Accordion
               type="single"
+              collapsible
               value={accordionValue}
               onValueChange={setAccordionValue}
             >

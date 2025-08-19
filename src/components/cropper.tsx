@@ -120,7 +120,7 @@ export function MyCropper({
 
   // 更新 FFmpeg transpose 数组
   useEffect(() => {
-    const rotationIndex = (rotationState / 90) % 4; // 0, 1, 2, 3
+    const rotationIndex = Math.floor((rotationState / 90) % 4); // only 0, 1, 2, 3
 
     // 8 combinations: 4 rotations with 2 flip states
     const transposeMap: { [key: string]: number[] } = {
