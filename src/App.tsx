@@ -571,12 +571,22 @@ function App() {
   };
 
   const handleDownload = (media: BlobUrl): void => {
-    const link = document.createElement("a");
-    link.href = media.url;
-    link.download = media.blob.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const link = document.createElement("a");
+      link.href = media.url;
+      link.download = media.blob.name;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        document.body.removeChild(link);
+      }, 100);
+    } catch (error) {
+      console.error("Download failed:", error);
+      toast({
+        description: "Download failed: " + String(error),
+      });
+    }
   };
 
   const handleCopyLink = (media: BlobUrl): Promise<void> => {
@@ -603,12 +613,16 @@ function App() {
     if (newName !== "") {
       setter((prev) => {
         if (!prev) return prev;
+        const newFile = new File([prev.blob], `${newName}.${media.ext}`, {
+          type: prev.blob.type,
+        });
+        // Revoke old URL and create new one
+        URL.revokeObjectURL(prev.url);
+        const newUrl = URL.createObjectURL(newFile);
         return {
           ...prev,
-          blob: new File([prev.blob], `${newName}.${media.ext}`, {
-            type: prev.blob.type,
-          }),
-          url: prev.url, // keep the old url, or regenerate if needed
+          blob: newFile,
+          url: newUrl,
         };
       });
       toast({
@@ -991,6 +1005,13 @@ function App() {
       return ffmpeg.terminate();
     }
 
+    try {
+      // Add memory management initialization
+      if (!ffmpeg.loaded) {
+        appendLog("⚠️ FFmpeg not loaded, attempting to reload...");
+        await loadFFmpeg();
+      }
+
     let mediaScale = 0;
     const shouldCrop = !onlyRotate && croppedArea;
 
@@ -1219,6 +1240,21 @@ function App() {
     toast({
       description: t("toast.transcodeDone"),
     });
+    } catch (error) {
+      console.error("FFmpeg execution error:", error);
+      appendLog(`❌ FFmpeg memory/execution error: ${String(error)}`);
+      toast({
+        description: `FFmpeg error: ${String(error)}`,
+      });
+      setProgress(0);
+      setLoading((prev) => prev & ~4);
+      // Terminate FFmpeg to clean up memory
+      try {
+        ffmpeg.terminate();
+      } catch (cleanupError) {
+        console.error("Error during FFmpeg cleanup:", cleanupError);
+      }
+    }
   };
 
   const fixXmp = (xmpContent?: string, videoSize?: number, stamp?: number) => {
