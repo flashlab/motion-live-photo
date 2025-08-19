@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  motion-live-photo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=production
+      - PORT=5173
+      - HOSTNAME=0.0.0.0
+    restart: unless-stopped
+    container_name: motion-live-photo-app
