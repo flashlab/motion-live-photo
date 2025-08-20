@@ -22,15 +22,12 @@ export default defineConfig({
     }),
     analyzer({
       exclude: ['**/heic-to.js', '**/livephotoskit*.js'],
+      open: false, // 禁用自动打开浏览器
+      analyzerMode: 'static', // 使用静态模式而不是服务器模式
     }),
   ],
   optimizeDeps: {
-    exclude: [
-      "@ffmpeg/ffmpeg",
-      "@ffmpeg/util",
-      "@ffmpeg/core-mt",
-      "@ffmpeg/core",
-    ],
+    // No FFmpeg exclusions needed since we use Node.js FFmpeg on the server
   },
   resolve: {
     alias: {

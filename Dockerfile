@@ -1,6 +1,12 @@
 # Motion Live Photo - Single container with both frontend and backend
 FROM node:22-slim AS base
 
+# Install FFmpeg and system dependencies
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
@@ -18,13 +24,9 @@ COPY . .
 # Build the frontend with production configuration
 ENV BROWSER=none
 ENV NODE_ENV=production
-ENV DISPLAY=:0
 
-# Create a fake xdg-open script to prevent errors
-RUN printf '#!/bin/sh\nexit 0\n' > /usr/bin/xdg-open && chmod +x /usr/bin/xdg-open
-
-# Build with timeout to prevent hanging
-RUN timeout 30s npm run build || echo "Build completed or timed out"
+# Build the frontend
+RUN npm run build
 
 # Production image
 FROM base AS runner
@@ -51,6 +53,9 @@ ENV CORS_ORIGIN=*
 
 # Create uploads directory with proper permissions
 RUN mkdir -p uploads && chmod 755 uploads
+
+# Change ownership of uploads directory to non-root user
+RUN chown -R nextjs:nodejs /app/uploads
 
 USER nextjs
 

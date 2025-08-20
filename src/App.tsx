@@ -47,9 +47,7 @@ import { Switch } from "@/components/ui/switch";
 import { LivePhoto, LivePhotoIcon, XmpStrings } from "@/components/LivePhoto";
 import { InputBtn, UpOpt } from "@/components/widget";
 import { useToast } from "@/hooks/use-toast";
-import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { fetchFile, toBlobURL } from "@ffmpeg/util";
-import { FFMPEG_URL } from "@/lib/const";
+import { ffmpegAPI, API_BASE_URL } from "@/lib/ffmpeg-api";
 import {
   resizeDimensions,
   humanFileSize,
@@ -139,6 +137,7 @@ import {
   WrapText,
   Link,
   Timer,
+  Server,
 } from "lucide-react";
 
 let fileWorker: Worker | null = null;
@@ -250,7 +249,7 @@ function App() {
   );
   const [defaultXmpOpt, setDefaultXmpOpt] = useState<string>("default");
 
-  const ffmpegRef = useRef(new FFmpeg());
+  const ffmpegAPIRef = useRef(ffmpegAPI);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const convertedImageRef = useRef<HTMLImageElement | null>(null);
@@ -272,6 +271,22 @@ function App() {
   );
   const [coreLoad, setCoreLoad] = useState(false);
   const [loading, setLoading] = useState(0); // 0: idle, 1: download wasm, 2: parsing image, 4: ffmpeg, 8: uploading
+
+  // 自动连接服务器
+  useEffect(() => {
+    const autoConnectServer = async () => {
+      try {
+        appendLog("🔄 Auto-connecting to server...");
+        await checkServerConnection(false);
+      } catch (err) {
+        appendLog(`❌ Auto-connection failed: ${err}`);
+      }
+    };
+
+    // 延迟1秒后自动连接，避免与其他初始化冲突
+    const timer = setTimeout(autoConnectServer, 1000);
+    return () => clearTimeout(timer);
+  }, []);
   const [convertedVideoExt, setConvertedVideoExt] = useState(0); // 0: mp4, 1: mov, 2: webm
   const [convertedImageExt, setConvertedImageExt] = useState(0); // 0: jpg, 1: png, 2: webp
   const [heicToQuality, setHeicToQuality] = useState(0.8); // 0.0 - 1.0, default 0.8
@@ -900,61 +915,31 @@ function App() {
       });
   };
 
-  const loadWasm = () => {
+  const checkServerConnection = async (isManual = true) => {
     setLoading((prev) => prev | 1);
-
-    loadFFmpeg()
-      .then(() => {
+    try {
+      if (isManual) {
+        appendLog("🔄 Manual server connection attempt...");
+      }
+      const result = await ffmpegAPI.getFFmpegInfo();
+      if (result.success) {
         setCoreLoad(true);
+        appendLog("✅ Server FFmpeg is ready");
         toast({
-          description: t("toast.wasmLoaded"),
+          description: "Server FFmpeg is ready",
         });
-      })
-      .catch((err) => {
-        setProgress(0);
-        appendLog(`❌ Error loading ffmpeg core files: ${err}`);
-        toast({
-          description: t("toast.err.wasm"),
-        });
-      })
-      .finally(() => {
-        setLoading((prev) => prev & ~1);
+      } else {
+        throw new Error(result.error || "Server not available");
+      }
+    } catch (err) {
+      setProgress(0);
+      appendLog(`❌ Error connecting to server: ${err}`);
+      toast({
+        description: "Server connection failed",
       });
-  };
-
-  const loadFFmpeg = async (): Promise<boolean> => {
-    const ffmpeg = ffmpegRef.current;
-    ffmpeg.terminate();
-    const baseLib = FFMPEG_URL[isCoreMT ? "core_mt" : "core"];
-    const setUrlProgress = ({
-      total: _total,
-      received: _received,
-    }: {
-      total: number;
-      received: number;
-    }) => {
-      setProgress(
-        Math.round((_received / (_total > 0 ? _total : baseLib.size)) * 100)
-      );
-    };
-    return ffmpeg.load({
-      coreURL: await toBlobURL(
-        `${baseLib.url}/ffmpeg-core.js`,
-        "text/javascript"
-      ),
-      wasmURL: await toBlobURL(
-        `${baseLib.url}/ffmpeg-core.wasm`,
-        "application/wasm",
-        true,
-        setUrlProgress
-      ),
-      workerURL: isCoreMT
-        ? await toBlobURL(
-            `${baseLib.url}/ffmpeg-core.worker.js`,
-            "text/javascript"
-          )
-        : "",
-    });
+    } finally {
+      setLoading((prev) => prev & ~1);
+    }
   };
 
   const transcode = () => {
@@ -997,263 +982,156 @@ function App() {
   ) => {
     if (!img.obj && !film.obj) return;
 
-    const ffmpeg = ffmpegRef.current;
+    const ffmpeg = ffmpegAPIRef.current;
     setProgress(0);
-    // Abort worker.
+    // Abort processing.
     if ((loading & 4) !== 0) {
       setLoading((prev) => prev & ~4);
-      return ffmpeg.terminate();
+      return;
     }
 
     try {
-      // Add memory management initialization
-      if (!ffmpeg.loaded) {
-        appendLog("⚠️ FFmpeg not loaded, attempting to reload...");
-        await loadFFmpeg();
+      // Check server connection
+      if (!coreLoad) {
+        appendLog("⚠️ Server not connected, attempting to connect...");
+        await checkServerConnection(true);
       }
 
-    let mediaScale = 0;
-    const shouldCrop = !onlyRotate && croppedArea;
+      // Process image if provided
+      if (img.obj) {
+        appendLog(`📸 Processing image: ${img.obj.blob.name}`);
+        
+        const options = {
+          outputFormat: imageTypes[convertedImageExt] as any,
+          quality: 'medium' as const,
+          width: newImageDimensions?.width,
+          height: newImageDimensions?.height,
+          rotate: rotateOrder.length > 0 ? rotateOrder.map(r => `transpose=${r}`).join(",") : undefined
+        };
 
-    if (imageDimension && videoDimension) {
-      const widthRatio = videoDimension.width / imageDimension.width;
-      const heightRatio = videoDimension.height / imageDimension.height;
-      if (widthRatio === heightRatio) mediaScale = widthRatio;
-    }
-
-    const outputVideoExt = videoTypes[convertedVideoExt];
-    const outputImageExt = imageTypes[convertedImageExt];
-    const argsHead = ["-v", "level+verbose", "-y"];
-    const ffmpegArgs = [
-      ["-loglevel", "quiet", "-i", "empty.webm", "empty.mp4"],
-      [
-        "-i",
-        `input.${img?.obj?.ext}`,
-        "-vf",
-        [
-          rotateOrder.map((r) => `transpose=${r}`).join(","),
-          shouldCrop
-            ? `crop=${croppedArea.width}:${croppedArea.height}:${croppedArea.x}:${croppedArea.y}`
-            : "",
-          `scale=min(${maxDimensions?.at(0) || 99999}\\,iw):min(${
-            maxDimensions?.at(1) || 99999
-          }\\,ih):force_original_aspect_ratio=decrease`,
-        ]
-          .filter(Boolean)
-          .join(","),
-        `output.${outputImageExt}`,
-      ],
-      [
-        ...(beginStamp > 0 ? ["-ss", beginStamp.toFixed(3)] : []),
-        ...(stopStamp > 0
-          ? ["-t", (stopStamp - (beginStamp > 0 ? beginStamp : 0)).toFixed(3)]
-          : []),
-        "-i",
-        `input.${film?.obj?.ext}`,
-        "-vf",
-        [
-          rotateOrder.map((r) => `transpose=${r}`).join(","),
-          shouldCrop && mediaScale
-            ? `crop=${croppedArea.width * mediaScale}:${
-                croppedArea.height * mediaScale
-              }:${croppedArea.x * mediaScale}:${croppedArea.y * mediaScale}`
-            : "",
-          `scale=min(${maxDimensions?.at(2) || 99999}\\,iw):min(${
-            maxDimensions?.at(3) || 99999
-          }\\,ih):force_original_aspect_ratio=decrease`,
-        ]
-          .filter(Boolean)
-          .join(","),
-        ...(outputVideoExt === "webm"
-          ? ["-c:v", "libvpx", "-crf", "10", "-b:v", "10M"]
-          : ["-c:v", "libx264", "-crf", "18"]),
-        ...["-preset", "medium", "-pix_fmt", "yuv420p"],
-        ...(keepAudio ? ["-acodec", "copy"] : ["-an"]),
-        `output.${outputVideoExt}`,
-      ],
-      [
-        "-ss",
-        extractStamp.toFixed(3),
-        "-i",
-        `input.${film?.obj?.ext}`,
-        "-frames:v",
-        "1",
-        "-update",
-        "1",
-        `extract.${outputImageExt}`,
-      ],
-      [
-        "-select_streams",
-        "v:0",
-        "-show_entries",
-        "stream",
-        "-of",
-        "json",
-        `input.${film?.obj?.ext}`,
-        "-o",
-        "output.txt",
-      ],
-    ];
-
-    // Listen to progress event instead of log.
-    // progress event is experimental, be careful when using it
-    const logListener = ({ message }: { message: string }) => {
-      appendLog(message);
-    };
-    const progListener = ({ progress: prog }: { progress: number }) => {
-      setProgress(Math.round(Math.min(100, prog * 100)));
-    };
-    const runCommand = async (args: string[], isProbe?: boolean) => {
-      await ffmpeg[isProbe ? "ffprobe" : "exec"]([
-        ...(isProbe ? ["-v", "error"] : argsHead),
-        ...(((isConvert & 4) !== 0 &&
-          prompt("Enter edit command", args.join(" "))?.split(" ")) ||
-          args),
-      ]);
-    };
-    ffmpeg.on("progress", progListener);
-    ffmpeg.on("log", logListener);
-    if (img.obj) {
-      await ffmpeg.writeFile(
-        `input.${img.obj.ext}`,
-        await fetchFile(img.obj.blob)
-      );
-      try {
-        await runCommand(ffmpegArgs[img.arg]);
-        const fileData = (await ffmpeg.readFile(
-          `output.${outputImageExt}`
-        )) as Uint8Array<ArrayBuffer>;
-        const imageBlob = new File(
-          [fileData],
-          img.obj.blob.name.replace(/\.[^.]+?$/, `_conv.${outputImageExt}`),
-          { type: imageMimeTypes[convertedImageExt] }
-        );
-        setConvertedImageUrl({
-          blob: imageBlob,
-          url: URL.createObjectURL(imageBlob),
-          ext: outputImageExt,
-          tag: "converted",
-        });
-      } catch (e) {
-        appendLog(`❌ Error transcoding image: ${String(e)}`);
-        toast({
-          description: t("toast.err.transcodeImage"),
-        });
-        // reload wasm on image proceeding err.
-        loadWasm();
-      }
-    }
-    if (film.obj) {
-      await ffmpeg.writeFile(
-        `input.${film.obj.ext}`,
-        await fetchFile(film.obj.blob)
-      );
-      try {
-        if (film.arg === 4) {
-          await runCommand(ffmpegArgs[4], true);
-          const fileText = (await ffmpeg.readFile(
-            "output.txt",
-            "utf8"
-          )) as string;
-          appendLog(fileText);
-          try {
-            const probeData = JSON.parse(fileText) as FFProbeOutput;
-            const stream = probeData.streams?.[0];
-            if (stream) {
-              const rotation = stream.side_data_list?.[0]?.rotation;
-              const width = stream.width;
-              const height = stream.height;
-              if (width && height) {
-                setVideoDimension(
-                  [90, -90, 270, -270].includes(rotation ?? 0)
-                    ? { width: height, height: width }
-                    : { width, height }
-                );
-              }
-            }
-          } catch (err) {
-            throw new Error(`❌ Error parsing ffprobe output: ${String(err)}`);
-          }
-        } else if (film.arg === 3) {
-          // pre excute with meaningless command to solve mp4-to-jpg error.
-          await runCommand(ffmpegArgs[0]);
-          await runCommand(ffmpegArgs[3]);
-          const fileData = (await ffmpeg.readFile(
-            `extract.${outputImageExt}`
-          )) as Uint8Array<ArrayBuffer>;
-          const extBlob = new File(
-            [fileData],
-            film.obj.blob.name.replace(/\.[^.]+?$/, `_cut.${outputImageExt}`),
+        const result = await ffmpeg.processFile(img.obj.blob, options);
+        
+        if (result.success && result.outputUrl) {
+          // Fetch the processed file
+          const response = await fetch(`${API_BASE_URL}${result.outputUrl}`);
+          const blob = await response.blob();
+          const imageBlob = new File(
+            [blob],
+            img.obj.blob.name.replace(/\.[^.]+?$/, `_conv.${imageTypes[convertedImageExt]}`),
             { type: imageMimeTypes[convertedImageExt] }
           );
-          setImageFile({
-            blob: extBlob,
-            url: URL.createObjectURL(extBlob),
-            ext: outputImageExt,
-            tag: "snapshot",
-          });
-          setCaptureStamp(extractStamp);
-        } else {
-          if (shouldCrop && !mediaScale) {
-            toast({
-              description: t("toast.err.scaleNotMatch"),
-            });
-          }
-          await runCommand(ffmpegArgs[film.arg]);
-
-          const fileData = (await ffmpeg.readFile(
-            `output.${outputVideoExt}`
-          )) as Uint8Array<ArrayBuffer>;
-          const videoBlob = new File(
-            [fileData],
-            film.obj.blob.name.replace(
-              /(\.[^.]+)?$/,
-              `output.${outputVideoExt}`
-            ),
-            { type: videoMimeTypes[convertedVideoExt] }
-          );
-          const newfile = URL.createObjectURL(videoBlob);
-          setConvertedVideoUrl({
-            blob: videoBlob,
-            url: newfile,
-            ext: outputVideoExt,
+          setConvertedImageUrl({
+            blob: imageBlob,
+            url: URL.createObjectURL(imageBlob),
+            ext: imageTypes[convertedImageExt],
             tag: "converted",
           });
-          // use converted video if raw video broken.
-          if (
-            videoRef.current &&
-            videoRef.current.readyState < HTMLMediaElement.HAVE_METADATA
-          )
-            videoRef.current.src = newfile;
+          appendLog(`✅ Image processed successfully: ${result.filename}`);
+        } else {
+          throw new Error(result.error || 'Image processing failed');
         }
-      } catch (e) {
-        appendLog(`❌ Error excute ffmpeg on video: ${String(e)}`);
-        toast({
-          description: t("toast.err.transcodeVideo"),
-        });
-        setProgress(0);
       }
-    }
-    ffmpeg.off("log", logListener);
-    ffmpeg.off("progress", progListener);
-    setLoading((prev) => prev & ~4);
-    toast({
-      description: t("toast.transcodeDone"),
-    });
+
+      // Process video if provided
+      if (film.obj) {
+        appendLog(`🎬 Processing video: ${film.obj.blob.name}`);
+        
+        if (film.arg === 3) {
+          // Extract frame
+          const result = await ffmpeg.extractFrame(film.obj.blob, extractStamp.toFixed(3));
+          
+          if (result.success && result.outputUrl) {
+            const response = await fetch(`${API_BASE_URL}${result.outputUrl}`);
+            const blob = await response.blob();
+            const extBlob = new File(
+              [blob],
+              film.obj.blob.name.replace(/\.[^.]+?$/, `_cut.${imageTypes[convertedImageExt]}`),
+              { type: imageMimeTypes[convertedImageExt] }
+            );
+            setImageFile({
+              blob: extBlob,
+              url: URL.createObjectURL(extBlob),
+              ext: imageTypes[convertedImageExt],
+              tag: "snapshot",
+            });
+            setCaptureStamp(extractStamp);
+            appendLog(`✅ Frame extracted successfully: ${result.filename}`);
+          } else {
+            throw new Error(result.error || 'Frame extraction failed');
+          }
+        } else if (film.arg === 4) {
+          // Get video dimensions using ffprobe (simplified)
+          appendLog(`📏 Getting video dimensions for: ${film.obj.blob.name}`);
+          // For now, use the video element to get dimensions
+          if (videoRef.current) {
+            videoRef.current.onloadedmetadata = () => {
+              const { videoWidth, videoHeight } = videoRef.current!;
+              setVideoDimension({
+                width: videoWidth,
+                height: videoHeight,
+              });
+              appendLog(`📏 Video dimensions: ${videoWidth}x${videoHeight}`);
+            };
+            videoRef.current.src = film.obj.url;
+          }
+        } else {
+          // Process video
+          const options = {
+            outputFormat: videoTypes[convertedVideoExt] as any,
+            quality: 'medium' as const,
+            width: newVideoDimensions?.width,
+            height: newVideoDimensions?.height,
+            startTime: beginStamp > 0 ? beginStamp.toFixed(3) : undefined,
+            duration: stopStamp > 0 && beginStamp > 0 ? (stopStamp - beginStamp).toFixed(3) : undefined,
+            mute: !keepAudio,
+            rotate: rotateOrder.length > 0 ? rotateOrder.map(r => `transpose=${r}`).join(",") : undefined
+          };
+
+          const result = await ffmpeg.processFile(film.obj.blob, options);
+          
+          if (result.success && result.outputUrl) {
+            const response = await fetch(`${API_BASE_URL}${result.outputUrl}`);
+            const blob = await response.blob();
+            const videoBlob = new File(
+              [blob],
+              film.obj.blob.name.replace(/(\.[^.]+)?$/, `output.${videoTypes[convertedVideoExt]}`),
+              { type: videoMimeTypes[convertedVideoExt] }
+            );
+            const newfile = URL.createObjectURL(videoBlob);
+            setConvertedVideoUrl({
+              blob: videoBlob,
+              url: newfile,
+              ext: videoTypes[convertedVideoExt],
+              tag: "converted",
+            });
+            
+            // use converted video if raw video broken
+            if (
+              videoRef.current &&
+              videoRef.current.readyState < HTMLMediaElement.HAVE_METADATA
+            ) {
+              videoRef.current.src = newfile;
+            }
+            
+            appendLog(`✅ Video processed successfully: ${result.filename}`);
+          } else {
+            throw new Error(result.error || 'Video processing failed');
+          }
+        }
+      }
+
+      setLoading((prev) => prev & ~4);
+      toast({
+        description: t("toast.transcodeDone"),
+      });
     } catch (error) {
       console.error("FFmpeg execution error:", error);
-      appendLog(`❌ FFmpeg memory/execution error: ${String(error)}`);
+      appendLog(`❌ FFmpeg processing error: ${String(error)}`);
       toast({
         description: `FFmpeg error: ${String(error)}`,
       });
       setProgress(0);
       setLoading((prev) => prev & ~4);
-      // Terminate FFmpeg to clean up memory
-      try {
-        ffmpeg.terminate();
-      } catch (cleanupError) {
-        console.error("Error during FFmpeg cleanup:", cleanupError);
-      }
     }
   };
 
@@ -2080,7 +1958,7 @@ function App() {
                   variant="outline"
                   size="sm"
                   disabled={(loading & 1) !== 0}
-                  onClick={loadWasm}
+                  onClick={() => checkServerConnection(true)}
                 >
                   {(loading & 1) !== 0 ? (
                     <>
@@ -2089,14 +1967,8 @@ function App() {
                     </>
                   ) : (
                     <>
-                      <Route className="icon-svg" />
-                      {t("btn.wasm")} (~
-                      {humanFileSize(
-                        FFMPEG_URL[isCoreMT ? "core_mt" : "core"].size,
-                        false,
-                        0
-                      )}
-                      )
+                      <Server className="icon-svg" />
+                      Reconnect Server
                     </>
                   )}
                 </Button>

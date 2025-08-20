@@ -5,6 +5,7 @@ import fs from 'fs';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { fileURLToPath } from 'url';
+import ffmpeg from 'fluent-ffmpeg';
 
 // ES模块环境下获取__dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -162,6 +163,259 @@ app.delete('/api/files/:filename', (req, res) => {
     success: true,
     message: 'File deleted successfully'
   });
+});
+
+// FFmpeg processing endpoint
+app.post('/api/ffmpeg/process', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { 
+      outputFormat = 'mp4',
+      quality = 'medium',
+      width,
+      height,
+      startTime,
+      duration,
+      mute = false,
+      rotate
+    } = req.body;
+
+    const inputPath = req.file.path;
+    const outputId = uuidv4();
+    const outputExt = outputFormat === 'gif' ? 'gif' : 'mp4';
+    const outputPath = path.join(__dirname, 'uploads', `${outputId}.${outputExt}`);
+
+    // Build FFmpeg command
+    let command = ffmpeg(inputPath);
+
+    // Set output format
+    if (outputFormat === 'gif') {
+      command.outputFormat('gif');
+    }
+
+    // Set video codec based on quality
+    if (quality === 'high') {
+      command.videoCodec('libx264').outputOptions(['-crf 18', '-preset slow']);
+    } else if (quality === 'medium') {
+      command.videoCodec('libx264').outputOptions(['-crf 23', '-preset medium']);
+    } else {
+      command.videoCodec('libx264').outputOptions(['-crf 28', '-preset fast']);
+    }
+
+    // Set dimensions
+    if (width && height) {
+      command.size(`${width}x${height}`);
+    }
+
+    // Set time range
+    if (startTime) {
+      command.seekInput(parseFloat(startTime));
+    }
+    if (duration) {
+      command.duration(parseFloat(duration));
+    }
+
+    // Mute audio if requested
+    if (mute === 'true') {
+      command.noAudio();
+    }
+
+    // Rotate video if requested
+    if (rotate) {
+      command.outputOptions([`-vf "rotate=${rotate}"`]);
+    }
+
+    // Execute FFmpeg command
+    command
+      .on('start', (commandLine) => {
+        console.log('FFmpeg command:', commandLine);
+      })
+      .on('progress', (progress) => {
+        console.log('Processing:', Math.round(progress.percent) + '%');
+      })
+      .on('end', () => {
+        // Clean up input file
+        fs.unlinkSync(inputPath);
+        
+        res.json({
+          success: true,
+          outputUrl: `/uploads/${outputId}.${outputExt}`,
+          filename: `${outputId}.${outputExt}`,
+          message: 'FFmpeg processing completed successfully'
+        });
+      })
+      .on('error', (err) => {
+        console.error('FFmpeg error:', err);
+        // Clean up input file
+        if (fs.existsSync(inputPath)) {
+          fs.unlinkSync(inputPath);
+        }
+        res.status(500).json({
+          error: 'FFmpeg processing failed',
+          details: err.message
+        });
+      })
+      .save(outputPath);
+
+  } catch (error) {
+    console.error('FFmpeg processing error:', error);
+    res.status(500).json({
+      error: 'FFmpeg processing failed',
+      details: error.message
+    });
+  }
+});
+
+// Extract video from motion photo
+app.post('/api/ffmpeg/extract-video', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const inputPath = req.file.path;
+    const outputId = uuidv4();
+    const outputPath = path.join(__dirname, 'uploads', `${outputId}_video.mp4`);
+
+    ffmpeg(inputPath)
+      .on('start', (commandLine) => {
+        console.log('Extract video command:', commandLine);
+      })
+      .on('end', () => {
+        // Clean up input file
+        fs.unlinkSync(inputPath);
+        
+        res.json({
+          success: true,
+          videoUrl: `/uploads/${outputId}_video.mp4`,
+          filename: `${outputId}_video.mp4`,
+          message: 'Video extracted successfully'
+        });
+      })
+      .on('error', (err) => {
+        console.error('Video extraction error:', err);
+        if (fs.existsSync(inputPath)) {
+          fs.unlinkSync(inputPath);
+        }
+        res.status(500).json({
+          error: 'Video extraction failed',
+          details: err.message
+        });
+      })
+      .save(outputPath);
+
+  } catch (error) {
+    console.error('Video extraction error:', error);
+    res.status(500).json({
+      error: 'Video extraction failed',
+      details: error.message
+    });
+  }
+});
+
+// Extract frame from video
+app.post('/api/ffmpeg/extract-frame', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { timestamp = '00:00:01' } = req.body;
+    const inputPath = req.file.path;
+    const outputId = uuidv4();
+    const outputPath = path.join(__dirname, 'uploads', `${outputId}_frame.jpg`);
+
+    ffmpeg(inputPath)
+      .seekInput(timestamp)
+      .frames(1)
+      .on('start', (commandLine) => {
+        console.log('Extract frame command:', commandLine);
+      })
+      .on('end', () => {
+        // Clean up input file
+        fs.unlinkSync(inputPath);
+        
+        res.json({
+          success: true,
+          imageUrl: `/uploads/${outputId}_frame.jpg`,
+          filename: `${outputId}_frame.jpg`,
+          message: 'Frame extracted successfully'
+        });
+      })
+      .on('error', (err) => {
+        console.error('Frame extraction error:', err);
+        if (fs.existsSync(inputPath)) {
+          fs.unlinkSync(inputPath);
+        }
+        res.status(500).json({
+          error: 'Frame extraction failed',
+          details: err.message
+        });
+      })
+      .save(outputPath);
+
+  } catch (error) {
+    console.error('Frame extraction error:', error);
+    res.status(500).json({
+      error: 'Frame extraction failed',
+      details: error.message
+    });
+  }
+});
+
+// Get FFmpeg info
+app.get('/api/ffmpeg/info', (req, res) => {
+  try {
+    // Check if FFmpeg is available using the proper ES module import
+    import('child_process').then(({ exec }) => {
+      exec('ffmpeg -version', (error, stdout, stderr) => {
+        if (error) {
+          return res.json({
+            success: false,
+            error: 'FFmpeg is not installed on the server',
+            message: 'Please install FFmpeg to use video processing features',
+            installCommand: 'brew install ffmpeg'
+          });
+        }
+        
+        ffmpeg.getAvailableFormats((err, formats) => {
+          if (err) {
+            return res.status(500).json({ error: 'Failed to get FFmpeg formats' });
+          }
+          
+          ffmpeg.getAvailableCodecs((err, codecs) => {
+            if (err) {
+              return res.status(500).json({ error: 'Failed to get FFmpeg codecs' });
+            }
+            
+            res.json({
+              success: true,
+              formats: Object.keys(formats).slice(0, 20), // Return first 20 formats
+              codecs: Object.keys(codecs).slice(0, 20), // Return first 20 codecs
+              message: 'FFmpeg info retrieved successfully'
+            });
+          });
+        });
+      });
+    }).catch(err => {
+      console.error('Failed to import child_process:', err);
+      res.json({
+        success: false,
+        error: 'FFmpeg is not available',
+        message: 'Please install FFmpeg to use video processing features',
+        installCommand: 'brew install ffmpeg'
+      });
+    });
+  } catch (error) {
+    console.error('FFmpeg info error:', error);
+    res.status(500).json({
+      error: 'Failed to get FFmpeg info',
+      details: error.message
+    });
+  }
 });
 
 // Proxy endpoint for external API calls (to handle CORS)

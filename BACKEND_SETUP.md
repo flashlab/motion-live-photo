@@ -1,12 +1,12 @@
-# Motion Live Photo - 后端运行模式配置
+# Motion Live Photo - 服务器端运行模式配置
 
-本项目已经配置为支持后端运行模式，前端和后端在同一个容器中运行。
+本项目已完全转换为服务器端架构，使用 Node.js + Express + FFmpeg 进行服务器端媒体处理，提供更好的性能和可靠性。
 
 ## 部署方式
 
 ### 1. Docker部署（推荐）
 
-使用单个Docker容器同时运行前端和后端服务：
+使用单个Docker容器同时运行前端和后端服务，内置FFmpeg支持：
 
 ```bash
 # 构建并启动
@@ -17,24 +17,44 @@ docker-compose logs -f
 
 # 停止服务
 docker-compose down
+
+# 重新构建（如有代码更改）
+docker-compose build --no-cache
 ```
 
 访问地址：http://localhost:3000
 
 ### 2. 本地开发
 
-不使用Docker，在本地开发：
+在本地开发环境中运行：
 
 ```bash
 # 安装依赖
 npm install
 
-# 启动后端（在一个终端）
+# 启动后端服务器（终端1）
 npm run dev:server
 
-# 启动前端（在另一个终端）
+# 启动前端开发服务器（终端2）
 npm run dev
 ```
+
+访问地址：http://localhost:5173
+
+## 系统要求
+
+### 服务器要求
+- Node.js 18+
+- FFmpeg (Docker镜像中已包含)
+- 至少 1GB RAM
+- 存储空间用于上传文件
+
+### 本地开发要求
+- Node.js 18+
+- FFmpeg (需要单独安装)
+  - macOS: `brew install ffmpeg`
+  - Ubuntu: `sudo apt install ffmpeg`
+  - Windows: 下载FFmpeg并添加到PATH
 
 ## 环境变量
 
@@ -56,6 +76,12 @@ npm run dev
 - `POST /api/upload-multiple` - 多文件上传
 - `GET /api/files/:filename` - 获取文件信息
 - `DELETE /api/files/:filename` - 删除文件
+
+### FFmpeg处理接口
+- `POST /api/ffmpeg/process` - 使用FFmpeg处理文件（转换、压缩、裁剪等）
+- `POST /api/ffmpeg/extract-video` - 从动态照片中提取视频
+- `POST /api/ffmpeg/extract-frame` - 从视频中提取帧
+- `GET /api/ffmpeg/info` - 获取FFmpeg系统信息
 
 ### 系统接口
 - `GET /api/health` - 健康检查
@@ -145,3 +171,30 @@ docker-compose down -v --rmi all
 2. **文件压缩**：启用Gzip压缩
 3. **缓存策略**：配置适当的缓存头
 4. **负载均衡**：在高并发场景下使用负载均衡
+
+## 架构改进
+
+### 从浏览器端到服务器端的转变
+
+本项目已经从原来的浏览器端FFmpeg处理完全转换为服务器端架构，主要改进包括：
+
+#### 优势
+1. **性能提升**：服务器端FFmpeg处理比浏览器端WebAssembly版本更快
+2. **内存管理**：更好的内存管理，避免浏览器内存限制
+3. **文件大小支持**：支持更大的文件处理
+4. **稳定性**：减少浏览器崩溃和处理中断
+5. **安全性**：文件处理在服务器端进行，更安全
+
+#### 技术栈
+- **前端**：React + TypeScript + Vite
+- **后端**：Node.js + Express
+- **媒体处理**：FFmpeg (fluent-ffmpeg)
+- **文件上传**：Multer
+- **部署**：Docker + Docker Compose
+
+#### 处理流程
+1. 用户上传文件到服务器
+2. 服务器使用FFmpeg进行媒体处理
+3. 处理完成后自动清理临时文件
+4. 返回处理结果给前端
+5. 前端显示处理后的文件

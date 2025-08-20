@@ -12,8 +12,10 @@ services:
       - PORT=3000
       - HOSTNAME=0.0.0.0
       - CORS_ORIGIN=*
+      - MAX_FILE_SIZE=104857600  # 100MB in bytes
     volumes:
       - ./uploads:/app/uploads
+      - ./logs:/app/logs
     restart: unless-stopped
     container_name: motion-live-photo-app
     healthcheck:
@@ -22,6 +24,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - motion-live-photo-network
+
+networks:
+  motion-live-photo-network:
+    driver: bridge
 
 volumes:
   uploads:
+    driver: local
+  logs:
+    driver: local

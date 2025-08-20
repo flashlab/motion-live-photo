@@ -6,32 +6,22 @@ export function SiteFooter() {
       <div className="container-wrapper">
         <div className="container pt-2">
           <div className="text-balance text-center text-sm leading-loose text-muted-foreground md:text-left">
-            🌱 Built by{" "}
+            🌱 Source at{" "}
             <a
-              href="https://github.com/flashlab"
-              target="_blank"
+
               rel="noreferrer"
               className="font-medium underline underline-offset-4"
             >
-              ZZBD
+              Godx. 摄之社俱乐部
             </a>
             . Source at{" "}
             <a
-              href="https://github.com/flashlab/motion-live-photo"
+              href="https://szs.show/"
               target="_blank"
               rel="noreferrer"
               className="font-medium underline underline-offset-4"
             >
-              GitHub
-            </a>
-            . Document at{" "}
-            <a
-              href={t("link.document")}
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium underline underline-offset-4"
-            >
-              Blog
+              szs.show
             </a>
             .
           </div>
