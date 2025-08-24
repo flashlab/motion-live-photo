@@ -59,7 +59,7 @@
     "imageSet": "Image setting",
     "pasteConf": "⚠️ Overwrite local storage configuration from clipboard?",
     "readConf": "❓ Read server configuration to clipboard?",
-    "changeExt": "❓ Modifiy new file extension to: ",
+    "changeExt": "❓ Modifiy new file extension: ",
     "convertImageReset": "⚠️ Remove converted image?"
   },
   "label": {

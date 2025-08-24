@@ -56,6 +56,7 @@ import {
   parseFileName,
   getLogTimestamp,
 } from "@/lib/utils";
+import { makeRequest, type RequestWithAbort } from "@/lib/request";
 import {
   ReactCompareSlider,
   ReactCompareSliderImage,
@@ -255,7 +256,7 @@ function App() {
   const imageRef = useRef<HTMLImageElement | null>(null);
   const convertedImageRef = useRef<HTMLImageElement | null>(null);
   const logContainerRef = useRef<HTMLDivElement | null>(null);
-  const activeXhrRef = useRef<XMLHttpRequest[]>([]);
+  const activeXhrRef = useRef<RequestWithAbort[]>([]);
   const motionXmpRef = useRef({
     hasXmp: false,
     hasExtraXmp: false,
@@ -618,7 +619,6 @@ function App() {
   };
 
   const handleFileSelect = (file: File) => {
-    // get file name
     const { ext } = parseFileName(file.name);
     const mime = file.type;
     if (mime.startsWith("video/")) {
@@ -712,87 +712,75 @@ function App() {
           formData.append(body.key, media.blob, media.blob.name);
         else formData.append(body.key, body.value);
       }
-      const xhr = new XMLHttpRequest();
-      activeXhrRef.current.push(xhr);
 
-      const reqPromise = new Promise<void>((resolve, reject) => {
-        (reqMethod < 2 ? xhr.upload : xhr).addEventListener("progress", (e) => {
+      const headers: Record<string, string> = {};
+      for (const header of endPointHeader) {
+        headers[header.key] = header.value;
+      }
+
+      const requestData = reqMethod === 0 ? formData : reqMethod === 1 ? media.blob : null;
+
+      const request = makeRequest({
+        method: reqMethods[reqMethod],
+        url: realEndPoint,
+        headers: headers,
+        data: requestData,
+        responseType: reqMode ? 'blob' : 'text',
+        onprogress: (e) => {
           if (e.lengthComputable)
             setProgress(Math.round((e.loaded / e.total) * 100));
-        });
-        if (reqMode) xhr.responseType = "blob";
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            const textResponse = reqMode ? "" : xhr.responseText;
-            const blob = reqMode ? (xhr.response as Blob) : new Blob([]);
+        },
+        onload: (response) => {
+            const textResponse = reqMode ? "" : response.responseText;
+            const blob = reqMode ? (response.response as Blob) : new Blob([]);
             if (reqMode) {
-              try {
-                const setter = [setConvertedImageUrl, setConvertedVideoUrl][
-                  reqMode - 1
-                ];
-                if (blob.type) {
-                  const blobExtMatch = (
-                    reqMode === 1 ? imageMimeTypes : videoMimeTypes
-                  ).indexOf(blob.type);
-                  if (blobExtMatch > -1) {
-                    const blobFileExt = (
-                      reqMode === 1 ? imageTypes : videoTypes
-                    )[blobExtMatch];
-                    if (
-                      blobFileExt !== fileExt &&
-                      confirm(t("title.changeExt" + blobFileExt))
-                    ) {
-                      fileExt = blobFileExt;
-                    }
+              const setter = [setConvertedImageUrl, setConvertedVideoUrl][
+                reqMode - 1
+              ];
+              if (blob.type) {
+                const blobExtMatch = (
+                  reqMode === 1 ? imageMimeTypes : videoMimeTypes
+                ).indexOf(blob.type);
+                if (blobExtMatch > -1) {
+                  const blobFileExt = (
+                    reqMode === 1 ? imageTypes : videoTypes
+                  )[blobExtMatch];
+                  if (
+                    blobFileExt !== fileExt &&
+                    confirm(`${t("title.changeExt")} ${fileExt} → ${blobFileExt}?`)
+                  ) {
+                    fileExt = blobFileExt;
                   }
                 }
-                setter({
-                  blob: new File(
-                    [blob],
-                    media.blob.name.replace(/\.[^.]+?$/, `_cloud.${fileExt}`),
-                    {
-                      type: blob.type,
-                    }
-                  ),
-                  url: URL.createObjectURL(blob),
-                  ext: fileExt,
-                  tag: "cloud",
-                });
-              } catch (err) {
-                reject(new Error(`File parse error: ${String(err)}`));
               }
+              setter({
+                blob: new File(
+                  [blob],
+                  media.blob.name.replace(/\.[^.]+?$/, `_cloud.${fileExt}`),
+                  {
+                    type: blob.type,
+                  }
+                ),
+                url: URL.createObjectURL(blob),
+                ext: fileExt,
+                tag: "cloud",
+              });
             }
-            appendLog(`🚩 ${xhr.status} ${textResponse}`);
-            resolve();
-          } else {
-            reject(
-              new Error(`HTTP error Status: ${xhr.status} ${xhr.statusText}`)
-            );
-          }
-        };
-        xhr.onerror = () => {
-          reject(new Error("Network error occurred"));
-        };
-        xhr.onabort = () => {
-          reject(new Error("Upload aborted by user"));
-        };
+            appendLog(`🚩 ${response.status} ${textResponse}`);
+        }
       });
-      xhr.open(reqMethods[reqMethod], `${realEndPoint}`, true);
-      for (const header of endPointHeader) {
-        xhr.setRequestHeader(header.key, header.value);
-      }
-      xhr.send(
-        reqMethod === 0 ? formData : reqMethod === 1 ? media.blob : null
-      );
-      reqPromise
+
+      activeXhrRef.current.push(request);
+
+      request
         .then(() => {
-          appendLog(realEndPoint + "🚀" + reqMode ? "" : media.blob.name);
+          appendLog(realEndPoint + "🚀" + (reqMode ? "" : media.blob.name));
           toast({
-            description: t("toast.transfered") + reqMode ? "" : media.blob.name,
+            description: t("toast.transfered") + (reqMode ? "" : media.blob.name),
           });
         })
         .catch((err: Error) => {
-          if (err.message === "Upload aborted by user") {
+          if (err.message === "Upload aborted by user" || err.message === "Request aborted by user") {
             appendLog(`⏹️ Upload cancelled: ${media.blob.name}`);
           } else {
             appendLog(`❌ Error uploading ${media.blob.name}: ${err}`);
@@ -804,9 +792,9 @@ function App() {
           }
         })
         .finally(() => {
-          const index = activeXhrRef.current.indexOf(xhr);
+          const index = activeXhrRef.current.indexOf(request);
           if (index > -1) {
-            activeXhrRef.current.splice(index, 1);
+            void activeXhrRef.current.splice(index, 1);
           }
           if (++uploadCount >= requestFiles.length)
             setLoading((prev) => prev & ~8);
@@ -816,10 +804,8 @@ function App() {
   };
 
   const handleAbortUploads = () => {
-    activeXhrRef.current.forEach((xhr) => {
-      if (xhr.readyState !== XMLHttpRequest.DONE) {
-        xhr.abort();
-      }
+    activeXhrRef.current.forEach((request) => {
+      request.abort();
     });
     activeXhrRef.current = [];
 

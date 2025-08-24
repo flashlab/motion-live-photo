@@ -59,7 +59,7 @@
     "imageSet": "图片转码设置",
     "pasteConf": "⚠️ 是否使用剪切板内容覆盖本地配置？",
     "readConf": "❓ 是否读取服务器配置到剪切板？",
-    "changeExt": "❓ 是否修正文件后缀到：",
+    "changeExt": "❓ 是否修正文件后缀：",
     "convertImageReset": "⚠️ 是否清除已转换的图像？"
   },
   "label": {

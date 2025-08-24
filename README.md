@@ -10,7 +10,7 @@ A SPA online tool that converted and compressed [live photo](https://developer.a
 2. Convert or Reduce media (pixel, cut, crop, rotate, mute..) by ffmpeg wasm (single/multithread) with parameters adjustable, build-in compare slider enable change visualization of images.
 3. Take snapshot of video as static image of motion photo and custom presentation timestamp.
 4. Recreate motion photo jpg file from above with ability to custom XMP meta (experimental).
-4. Download / Upload with flexible API of all above, and fetch transformed image from cloud API (e.g. cloudflare image).
+4. Download / Upload with flexible API of all above, and fetch transformed image from cloud API (e.g. cloudflare image). CORS supported by GM userscript (see [CORS Support Guide](#CORS-Support-Guide)).
 5. Realtime logs with time stamps.
 6. Save configs locally and load from clipboard.
 7. Heic/heif image supported, you should export heic/jpg and mov file from iphone before import.
@@ -36,6 +36,9 @@ You can find deployed version at the URL below:
 - [x] Visualized cut and rotate media.
 - [ ] More XMP template.
 
+# CORS Support Guide
+
+Install Tampermonkey userscript from [greasyfork](https://greasyfork.org/zh-CN/scripts/547102-cors-plugin-for-motion-live).
 
 # Compare jpg compress quality
 
