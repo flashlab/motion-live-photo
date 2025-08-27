@@ -44,7 +44,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
-import { LivePhoto, LivePhotoIcon, XmpStrings } from "@/components/LivePhoto";
+import { LivePhoto, LivePhotoIcon } from "@/components/LivePhoto";
 import { InputBtn, UpOpt } from "@/components/widget";
 import { useToast } from "@/hooks/use-toast";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
@@ -57,6 +57,7 @@ import {
   getLogTimestamp,
 } from "@/lib/utils";
 import { makeRequest, type RequestWithAbort } from "@/lib/request";
+import { XmpStrings, fixXmpString } from "@/lib/extractutil";
 import {
   ReactCompareSlider,
   ReactCompareSliderImage,
@@ -349,12 +350,16 @@ function App() {
       } else {
         motionWorker(file)
           .then((data) => {
+            let xmpOpt = defaultXmpOpt;
+            if (data.xmp) {
+              xmpOpt = "embed";
+              XmpStrings["embed"] = data.xmp;
+              setDefaultXmpOpt("embed");
+            }
             motionXmpRef.current = {
               hasXmp: data.hasXmp,
               hasExtraXmp: data.hasExtraXmp,
-              xmp:
-                data.xmp ||
-                XmpStrings[defaultXmpOpt as keyof typeof XmpStrings],
+              xmp: XmpStrings[xmpOpt as keyof typeof XmpStrings],
             };
             setImageFile({
               blob: data.image,
@@ -718,56 +723,59 @@ function App() {
         headers[header.key] = header.value;
       }
 
-      const requestData = reqMethod === 0 ? formData : reqMethod === 1 ? media.blob : null;
+      const requestData =
+        reqMethod === 0 ? formData : reqMethod === 1 ? media.blob : null;
 
       const request = makeRequest({
         method: reqMethods[reqMethod],
         url: realEndPoint,
         headers: headers,
         data: requestData,
-        responseType: reqMode ? 'blob' : 'text',
+        responseType: reqMode ? "blob" : "text",
         onprogress: (e) => {
           if (e.lengthComputable)
             setProgress(Math.round((e.loaded / e.total) * 100));
         },
         onload: (response) => {
-            const textResponse = reqMode ? "" : response.responseText;
-            const blob = reqMode ? (response.response as Blob) : new Blob([]);
-            if (reqMode) {
-              const setter = [setConvertedImageUrl, setConvertedVideoUrl][
-                reqMode - 1
-              ];
-              if (blob.type) {
-                const blobExtMatch = (
-                  reqMode === 1 ? imageMimeTypes : videoMimeTypes
-                ).indexOf(blob.type);
-                if (blobExtMatch > -1) {
-                  const blobFileExt = (
-                    reqMode === 1 ? imageTypes : videoTypes
-                  )[blobExtMatch];
-                  if (
-                    blobFileExt !== fileExt &&
-                    confirm(`${t("title.changeExt")} ${fileExt} → ${blobFileExt}?`)
-                  ) {
-                    fileExt = blobFileExt;
-                  }
+          const textResponse = reqMode ? "" : response.responseText;
+          const blob = reqMode ? (response.response as Blob) : new Blob([]);
+          if (reqMode) {
+            const setter = [setConvertedImageUrl, setConvertedVideoUrl][
+              reqMode - 1
+            ];
+            if (blob.type) {
+              const blobExtMatch = (
+                reqMode === 1 ? imageMimeTypes : videoMimeTypes
+              ).indexOf(blob.type);
+              if (blobExtMatch > -1) {
+                const blobFileExt = (reqMode === 1 ? imageTypes : videoTypes)[
+                  blobExtMatch
+                ];
+                if (
+                  blobFileExt !== fileExt &&
+                  confirm(
+                    `${t("title.changeExt")} ${fileExt} → ${blobFileExt}?`
+                  )
+                ) {
+                  fileExt = blobFileExt;
                 }
               }
-              setter({
-                blob: new File(
-                  [blob],
-                  media.blob.name.replace(/\.[^.]+?$/, `_cloud.${fileExt}`),
-                  {
-                    type: blob.type,
-                  }
-                ),
-                url: URL.createObjectURL(blob),
-                ext: fileExt,
-                tag: "cloud",
-              });
             }
-            appendLog(`🚩 ${response.status} ${textResponse}`);
-        }
+            setter({
+              blob: new File(
+                [blob],
+                media.blob.name.replace(/\.[^.]+?$/, `_cloud.${fileExt}`),
+                {
+                  type: blob.type,
+                }
+              ),
+              url: URL.createObjectURL(blob),
+              ext: fileExt,
+              tag: "cloud",
+            });
+          }
+          appendLog(`🚩 ${response.status} ${textResponse}`);
+        },
       });
 
       activeXhrRef.current.push(request);
@@ -776,11 +784,15 @@ function App() {
         .then(() => {
           appendLog(realEndPoint + "🚀" + (reqMode ? "" : media.blob.name));
           toast({
-            description: t("toast.transfered") + (reqMode ? "" : media.blob.name),
+            description:
+              t("toast.transfered") + (reqMode ? "" : media.blob.name),
           });
         })
         .catch((err: Error) => {
-          if (err.message === "Upload aborted by user" || err.message === "Request aborted by user") {
+          if (
+            err.message === "Upload aborted by user" ||
+            err.message === "Request aborted by user"
+          ) {
             appendLog(`⏹️ Upload cancelled: ${media.blob.name}`);
           } else {
             appendLog(`❌ Error uploading ${media.blob.name}: ${err}`);
@@ -943,7 +955,7 @@ function App() {
   const extractjpg = () => {
     if (isExtractRaw === 4) {
       setCaptureStamp(extractStamp);
-      setXmpString(fixXmp(undefined, undefined, extractStamp));
+      setXmpString((prev) => fixXmp(prev, undefined, extractStamp));
       toast({
         description: t("toast.extractStamp"),
       });
@@ -1207,34 +1219,13 @@ function App() {
     });
   };
 
-  const fixXmp = (xmpContent?: string, videoSize?: number, stamp?: number) => {
-    if (!xmpContent && xmpString) xmpContent = xmpString;
-    if (!xmpContent) xmpContent = motionXmpRef.current.xmp;
-    if (!stamp && captureStamp >= 0) stamp = captureStamp * 1000000;
-    if (!videoSize)
-      videoSize = (convertedVideoUrl ?? videoFile)?.blob.size ?? 0;
-    // find OpCamera:VideoLength="..."/GCamera:MicroVideoOffset="..."/Item:Length="..."(after Item:Semantic="MotionPhoto")
-    // replace ... with videoSize
-    const regex = /OpCamera:VideoLength="(\d+)"/g;
-    let newXmpContent = xmpContent.replace(
-      regex,
-      `OpCamera:VideoLength="${videoSize}"`
+  const fixXmp = (xmpContent: string, videoSize?: number, stamp?: number) => {
+    if (!xmpContent) return "";
+    return fixXmpString(
+      xmpContent,
+      videoSize || ((convertedVideoUrl ?? videoFile)?.blob.size ?? 0),
+      stamp || (captureStamp > 0 ? captureStamp * 1000000 : 0)
     );
-    const regex2 = /GCamera:MicroVideoOffset="(\d+)"/g;
-    newXmpContent = newXmpContent.replace(
-      regex2,
-      `GCamera:MicroVideoOffset="${videoSize}"`
-    );
-    const regex3 =
-      /Item:Semantic="MotionPhoto"((.|\r|\n)*?)Item:Length="(\d+)"/g;
-    newXmpContent = newXmpContent.replace(
-      regex3,
-      `Item:Semantic="MotionPhoto"$1Item:Length="${videoSize}"`
-    );
-    // Timestamp
-    const regex4 = /(Camera:MotionPhoto\w*?PresentationTimestampUs=")\d+/g;
-    if (stamp) newXmpContent = newXmpContent.replace(regex4, `$1${stamp}`);
-    return newXmpContent;
   };
 
   function appendLog(msg: string) {
@@ -1258,7 +1249,7 @@ function App() {
   }, [accordionValue]);
 
   useEffect(() => {
-    if (imageFile) setXmpString(fixXmp());
+    if (imageFile) setXmpString((prev) => fixXmp(prev));
     // revoke all images if raw image updated
     return () => {
       if (imageFile) URL.revokeObjectURL(imageFile.url);
@@ -1719,7 +1710,8 @@ function App() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <h4 className="text-xs flex items-center gap-1 flex-1">
-                                {t("label.enableCrop")} <CircleAlert size={14} />
+                                {t("label.enableCrop")}{" "}
+                                <CircleAlert size={14} />
                               </h4>
                             </TooltipTrigger>
                             <TooltipContent>{t("tips.setCrop")}</TooltipContent>
@@ -2630,6 +2622,14 @@ function App() {
                       * {t("tips.uploadtips")}
                       <br />* {t("tips.downloadtips")}
                       <br />* {t("tips.cors")}
+                      <a
+                        className="underline decoration-wavy"
+                        href="https://greasyfork.org/zh-CN/scripts/547102-cors-plugin-for-motion-live"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        greasyfork
+                      </a>
                     </p>
                   </form>
                 </AccordionContent>

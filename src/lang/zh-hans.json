@@ -69,7 +69,7 @@
     "live": "实况",
     "keepAudio": "保留音频：",
     "outputFormat": "转码格式：",
-    "cutRange": "剪切区间(秒)：",
+    "cutRange": "剪切区间 (秒)：",
     "snapshot": "截取图片",
     "heicQuality": "heic 质量：",
     "enableCrop": "启用裁切",
@@ -96,6 +96,7 @@
     "requestDl": "下载替换",
     "requestUp": "上传",
     "default": "默认",
+    "xiaomi": "小米",
     "empty": "空空如也"
   },
   "tips": {
@@ -103,7 +104,7 @@
     "videoPrior": "视频优先级：转换的 > 原始的",
     "motiontips": "仅支持 jpg 图片合成，建议只替换原生实况照片的视频部分",
     "createMotion": "生成前请确认视频长度和时间戳",
-    "cutVideo": "默认值为当前进度(秒)，ffmpeg 用于截图",
+    "cutVideo": "默认值为当前进度 (秒)，ffmpeg 用于截图",
     "multiCore": "多线程速度更快但不稳定，转码失败时可尝试",
     "videoArgs": "设置视频转码参数，点击图标录入当前时间戳",
     "setPixel": "设置最大长宽，右方按钮可不修改或重置值",
@@ -114,7 +115,7 @@
     "apiUrl2": "标记文件类型",
     "imageArgs": "设置视频转码参数",
     "uploadtips": "点击右上角保存按钮将以明文形式储存于浏览器本地",
-    "cors": "请自行解决跨域问题",
+    "cors": "安装油猴脚本解决跨域问题：",
     "downloadtips": "云端转换需要提前上传，建议在 url 中标记文件后缀",
     "setCrop": "视频默认与图像同步裁切"
   },

@@ -75,11 +75,26 @@ const fileToArray = async (file: File) => {
   });
 };
 
-const createExifData = (width: number, height: number): Uint8Array => {
-  const exifHex =
-    "FFE100724578696600004D4D002A0000000800040100000400000001000005A001010004000000010000043C87690004000000010000003E011200030000000100000000000000000002928600020000000E0000005C920800040000000100000000000000006F706C75735F3833383836303800";
+type ModelKey = "oppo" | "xiaomi";
+
+interface ExifHexObj {
+  oppo: string;
+  xiaomi: string;
+}
+
+const exifHex: ExifHexObj = {
+  oppo: "FFE100724578696600004D4D002A0000000800040100000400000001000005A001010004000000010000043C87690004000000010000003E011200030000000100000000000000000002928600020000000E0000005C920800040000000100000000000000006F706C75735F3833383836303800",
+  xiaomi:
+    "FFE1007E4578696600004D4D002A0000000800040100000400000001000005A001010004000000010000043C01120003000000010000000087690004000000010000003E000000000003889700010000000101000000920800040000000100000000928600020000000E00000068000000006F706C75735F3833383836303800",
+};
+
+const createExifData = (
+  model: ModelKey,
+  width: number,
+  height: number
+): Uint8Array => {
   const exifArray = new Uint8Array(
-    exifHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
+    exifHex[model].match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
   );
 
   exifArray[28] = (width >> 24) & 0xff;
@@ -159,17 +174,23 @@ const extractMotion = (data: File) => {
         hasXmp = true;
         xmpString = fileString.slice(xmpStart, xmpEnd);
         const matches = xmpString.matchAll(
-          /<Container:Item[^>]*\bItem:Mime=["']video\/mp4["'][^>]*\bItem:Length=["'](\d+)["'][^>]*\/>/g
+          /Item:Length(?:=['"]|>)(\d+).*?\n(?:.*\n)?.*?MotionPhoto/g
+        );
+        const matches_rev = xmpString.matchAll(
+          /MotionPhoto.*?\n(?:.*\n)?[\s<]*?Item:Length(?:=['"]|>)(\d+)/g
         );
         const matches_alt = xmpString.matchAll(
-          /GCamera:MicroVideoOffset=["'](\d+)["']/g
+          /GCamera:MicroVideoOffset(?:=['"]|>)(\d+)/g
         );
         const matches_stamp = xmpString.matchAll(
-          /PresentationTimestampUs=["'](\d+)["']/g
+          /PresentationTimestampUs=(?:=['"]|>)(\d+)/g
         );
         let videoLength: number | null = null;
 
         for (const match of matches) {
+          if (!videoLength) videoLength = parseInt(match[1], 10); // extract length of video
+        }
+        for (const match of matches_rev) {
           if (!videoLength) videoLength = parseInt(match[1], 10); // extract length of video
         }
         for (const match of matches_alt) {
@@ -340,11 +361,15 @@ const createMotion = async (data: MotionData) => {
       let updatedFileArray: Uint8Array;
       let exifShiftLength = 0;
 
-      if (data.xy && data.model && data.model === "oppo") {
+      if (data.xy && data.model && data.model in exifHex) {
         const { width, height } = data.xy;
         const docMarker = new Uint8Array([0xff, 0xd8]);
         const interData = raw_app1.slice(app1_start, xmpStart);
-        const newExifData = createExifData(width, height);
+        const newExifData = createExifData(
+          data.model as ModelKey,
+          width,
+          height
+        );
         // app1_start = raw_app1.length - interData.length ???
         exifShiftLength = newExifData.length + 2 - app1_start;
         shiftLength += exifShiftLength;
@@ -392,6 +417,7 @@ const createMotion = async (data: MotionData) => {
       updatedFileArray.set(newVideoArray, videoStart + shiftLength);
       resolve(
         new File(
+          // @ts-expect-error should be OK
           [updatedFileArray],
           data.image.name.replace(/(\.[^.]+)?$/, "_live.jpg"),
           { type: "image/jpeg" }
