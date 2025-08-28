@@ -21,7 +21,7 @@
       "transcodeVideo": "❌ FFmpeg 视频任务失败，请尝试重新加载或调整参数。",
       "transcodeImage": "❌ 图片转码失败！准备重新加载 ffmpeg wasm。",
       "emptyConf": "不存在有效的配置信息。",
-      "scaleNotMatch": "⚠️ 视频与图像长宽比不同，忽略视频裁剪！或先截取图片后操作。"
+      "scaleNotMatch": "⚠️ 忽略视频裁切"
     },
     "videoLoad": "🚀 视频文件已加载",
     "renamed": "🚀 文件名已修改：",
@@ -51,7 +51,6 @@
     "upload": "上传 & 云转码",
     "head": "实况照片 web 助手",
     "log": "实时日志",
-    "rename": "修改文件名（不含扩展名）",
     "motion": "生成实况照片（beta）",
     "videoSet": "视频转码设置",
     "scale": "调整尺寸",
@@ -121,5 +120,9 @@
   },
   "link": {
     "document": "https://blog.zzbd.org/motion-live-photo-webui/"
+  },
+  "prompt": {
+    "rename": "修改文件名（不含扩展名）",
+    "scaleNotMatch": "⚠️ 视频与图像长宽比不同，请确认选择倍率，或取消后截取图片再操作。"
   }
 }

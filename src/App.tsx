@@ -595,7 +595,7 @@ function App() {
 
   const handleRename = (media: BlobUrl, index: number): void => {
     let newName = prompt(
-      t("title.rename"),
+      t("prompt.rename"),
       media.blob.name.replace(/(\.[^.]+)?$/, "")
     );
     const setter = [
@@ -947,8 +947,12 @@ function App() {
     localStorage.setItem("keepAudio", keepAudio ? "true" : "false");
     localStorage.setItem("isCoreMT", isCoreMT ? "true" : "false");
     void ffexec(
-      { obj: imageFile && (isConvert & 1) !== 0 ? imageFile : null, arg: 1 },
-      { obj: videoFile && (isConvert & 2) !== 0 ? videoFile : null, arg: 2 }
+      imageFile && (isConvert & 1) !== 0
+        ? { obj: imageFile, arg: 1 }
+        : { obj: null, arg: -1 },
+      videoFile && (isConvert & 2) !== 0
+        ? { obj: videoFile, arg: 2 }
+        : { obj: null, arg: -1 }
     );
   };
 
@@ -993,9 +997,28 @@ function App() {
     const shouldCrop = !onlyRotate && croppedArea;
 
     if (imageDimension && videoDimension) {
-      const widthRatio = videoDimension.width / imageDimension.width;
-      const heightRatio = videoDimension.height / imageDimension.height;
-      if (widthRatio === heightRatio) mediaScale = widthRatio;
+      const widthRatio =
+        Math.round((videoDimension.width / imageDimension.width) * 1000) / 1000;
+      const heightRatio =
+        Math.round((videoDimension.height / imageDimension.height) * 1000) /
+        1000;
+      if (widthRatio === heightRatio) {
+        mediaScale = widthRatio;
+      } else if (shouldCrop && film.arg === 2) {
+        const userScale = prompt(
+          `${t(
+            "prompt.scaleNotMatch"
+          )}\nwidth rate=${widthRatio}, height rate=${heightRatio}`,
+          `${Math.min(widthRatio, heightRatio)}`
+        );
+        if (userScale) {
+          mediaScale = parseFloat(userScale);
+        } else {
+          toast({
+            description: t("toast.err.scaleNotMatch"),
+          });
+        }
+      }
     }
 
     const outputVideoExt = videoTypes[convertedVideoExt];
@@ -1091,11 +1114,11 @@ function App() {
     ffmpeg.on("progress", progListener);
     ffmpeg.on("log", logListener);
     if (img.obj) {
-      await ffmpeg.writeFile(
-        `input.${img.obj.ext}`,
-        await fetchFile(img.obj.blob)
-      );
       try {
+        await ffmpeg.writeFile(
+          `input.${img.obj.ext}`,
+          await fetchFile(img.obj.blob)
+        );
         await runCommand(ffmpegArgs[img.arg]);
         const fileData = (await ffmpeg.readFile(
           `output.${outputImageExt}`
@@ -1121,11 +1144,11 @@ function App() {
       }
     }
     if (film.obj) {
-      await ffmpeg.writeFile(
-        `input.${film.obj.ext}`,
-        await fetchFile(film.obj.blob)
-      );
       try {
+        await ffmpeg.writeFile(
+          `input.${film.obj.ext}`,
+          await fetchFile(film.obj.blob)
+        );
         if (film.arg === 4) {
           await runCommand(ffmpegArgs[4], true);
           const fileText = (await ffmpeg.readFile(
@@ -1173,7 +1196,7 @@ function App() {
         } else {
           if (shouldCrop && !mediaScale) {
             toast({
-              description: t("toast.err.scaleNotMatch"),
+              description: t("prompt.scaleNotMatch"),
             });
           }
           await runCommand(ffmpegArgs[film.arg]);
@@ -1254,6 +1277,7 @@ function App() {
     return () => {
       if (imageFile) URL.revokeObjectURL(imageFile.url);
       setImageDimension(undefined);
+      setEnableCrop(false);
       setConvertedImageUrl(null);
       // setCaptureStamp(-1);
       // setXmpString(motionXmpRef.current.xmp);

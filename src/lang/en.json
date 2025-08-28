@@ -21,7 +21,7 @@
       "transcodeVideo": "❌ Error on ffmpeg video task! Try reload or adjust parameters.",
       "transcodeImage": "❌ Error transcoding image! Auto reload wasm.",
       "emptyConf": "No valid configuration found.",
-      "scaleNotMatch": "⚠️  Different aspect ratio between image and video, ignore video crop! Snapshot image first."
+      "scaleNotMatch": "⚠ Ignore video crop"
     },
     "videoLoad": "🚀 Video file loaded.",
     "renamed": "🚀 Success renamed:",
@@ -51,7 +51,6 @@
     "upload": "Upload & Cloud convert",
     "head": "Live photo Assistant",
     "log": "Realtime Logs",
-    "rename": "Rename (without extension)",
     "motion": "Motion photo Mux (Beta)",
     "videoSet": "Video setting",
     "scale": "Scale",
@@ -122,5 +121,9 @@
   },
   "link": {
     "document": "https://blog.zzbd.org/en/motion-live-photo-webui/"
+  },
+  "prompt": {
+    "rename": "Rename (without extension)",
+    "scaleNotMatch": "⚠️  Different aspect ratio between image and video,confirm video scale against image or snapshot image first."
   }
 }
