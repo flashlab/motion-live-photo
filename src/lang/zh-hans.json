@@ -21,7 +21,8 @@
       "transcodeVideo": "❌ FFmpeg 视频任务失败，请尝试重新加载或调整参数。",
       "transcodeImage": "❌ 图片转码失败！准备重新加载 ffmpeg wasm。",
       "emptyConf": "不存在有效的配置信息。",
-      "scaleNotMatch": "⚠️ 忽略视频裁切"
+      "scaleNotMatch": "⚠️ 忽略视频裁切",
+      "wrongParams": "取消执行或参数错误！"
     },
     "videoLoad": "🚀 视频文件已加载",
     "renamed": "🚀 文件名已修改：",
@@ -69,7 +70,7 @@
     "keepAudio": "保留音频：",
     "outputFormat": "转码格式：",
     "cutRange": "剪切区间 (秒)：",
-    "snapshot": "截取图片",
+    "snapshot": "截取图片：",
     "heicQuality": "heic 质量：",
     "enableCrop": "启用裁切",
     "noCrop": "只旋转："
@@ -105,24 +106,26 @@
     "createMotion": "生成前请确认视频长度和时间戳",
     "cutVideo": "默认值为当前进度 (秒)，ffmpeg 用于截图",
     "multiCore": "多线程速度更快但不稳定，转码失败时可尝试",
-    "videoArgs": "设置视频转码参数，点击图标录入当前时间戳",
     "setPixel": "设置最大长宽，右方按钮可不修改或重置值",
     "use": "使用",
     "apiUrl": "替换 url 中的文件名；",
     "reqHeader": "需要点击 + 号添加并应用当前字段",
     "poster": "/poster_zh.webp",
     "apiUrl2": "标记文件类型",
-    "imageArgs": "设置视频转码参数",
     "uploadtips": "点击右上角保存按钮将以明文形式储存于浏览器本地",
     "cors": "安装油猴脚本解决跨域问题：",
     "downloadtips": "云端转换需要提前上传，建议在 url 中标记文件后缀",
-    "setCrop": "视频默认与图像同步裁切"
+    "setCrop": "视频默认与图像同步裁切",
+    "popBoxTitle": "设置 ffmpeg 参数，转码按钮下拉菜单中可允许手动调参",
+    "cutVideoFrom": "点击录入当前时间戳为视频剪切起点",
+    "cutVideoTo": "点击录入当前时间戳为视频剪切终点"
   },
   "link": {
     "document": "https://blog.zzbd.org/motion-live-photo-webui/"
   },
   "prompt": {
     "rename": "修改文件名（不含扩展名）",
-    "scaleNotMatch": "⚠️ 视频与图像长宽比不同，请确认选择倍率，或取消后截取图片再操作。"
+    "scaleNotMatch": "⚠️ 视频与图像长宽比不同，请确认选择倍率，或取消后截取图片再操作。",
+    "editCommand": "⚠️ 调整 ffmpeg 执行参数，请勿修改输入文件名。"
   }
 }

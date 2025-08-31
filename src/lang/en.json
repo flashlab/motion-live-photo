@@ -21,7 +21,8 @@
       "transcodeVideo": "❌ Error on ffmpeg video task! Try reload or adjust parameters.",
       "transcodeImage": "❌ Error transcoding image! Auto reload wasm.",
       "emptyConf": "No valid configuration found.",
-      "scaleNotMatch": "⚠ Ignore video crop"
+      "scaleNotMatch": "⚠ Ignore video crop",
+      "wrongParams": "wrong params or cancelled!"
     },
     "videoLoad": "🚀 Video file loaded.",
     "renamed": "🚀 Success renamed:",
@@ -69,7 +70,7 @@
     "keepAudio": "Keep audio:",
     "outputFormat": "Output format:",
     "cutRange": "Cut range(Sec):",
-    "snapshot": "Snapshot",
+    "snapshot": "Snapshot:",
     "heicQuality": "Heic quality:",
     "enableCrop": "Enable crop",
     "noCrop": "Only rotate:"
@@ -106,24 +107,26 @@
     "createMotion": "Confirm timestamp and video length before create.",
     "cutVideo": "Extract image from video at position (s) with ffmpeg.",
     "multiCore": "Multi-threaded core is faster, but unstable and not supported by all browsers.",
-    "videoArgs": "Set ffmpeg params, click icon to apply current time of video",
     "setPixel": "Set max pixels, keep original or reset with buttons on the right",
     "use": "Use",
     "apiUrl": "to represent file name in url;",
     "reqHeader": "Click + to append and apply current http header",
     "poster": "/poster.webp",
     "apiUrl2": "to mark file extension",
-    "imageArgs": "Set ffmpeg params",
     "uploadtips": "The configurations will be saved to Local Storage if clicking button on top-right.",
     "cors": "Install userscript to solve CORS issues: ",
     "downloadtips": "Cloud conversion need pre-upload, marking the file extension in url is recommended.",
-    "setCrop": "Video will be crop as image"
+    "setCrop": "Video will be crop as image",
+    "popBoxTitle": "FFmpeg raw params were accessible by EDIT COMMAND in dropdown menu of Transcode button.",
+    "cutVideoFrom": "Click to use the current playing time point as clipping start.",
+    "cutVideoTo": "Click to use the current playing time point as clipping end."
   },
   "link": {
     "document": "https://blog.zzbd.org/en/motion-live-photo-webui/"
   },
   "prompt": {
     "rename": "Rename (without extension)",
-    "scaleNotMatch": "⚠️  Different aspect ratio between image and video,confirm video scale against image or snapshot image first."
+    "scaleNotMatch": "⚠️  Different aspect ratio between image and video,confirm video scale against image or snapshot image first.",
+    "editCommand": "⚠️Edit ffmpeg execution params, DO NOT change input file name."
   }
 }

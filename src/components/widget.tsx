@@ -1,5 +1,11 @@
 import { Input } from "@/components/ui/input";
 import { DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
+import {
+  TooltipProvider,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/mobile-tooltip";
 import { LucideProps } from "lucide-react";
 
 export function InputBtn({
@@ -7,6 +13,7 @@ export function InputBtn({
   tar,
   setter: Setter,
   onclick,
+  tooltip,
   placeholder,
   classinput,
   classicon,
@@ -15,6 +22,7 @@ export function InputBtn({
   tar: number;
   setter: React.Dispatch<React.SetStateAction<number>>;
   onclick?: () => void;
+  tooltip?: string;
   placeholder?: string;
   classinput?: string;
   classicon?: string;
@@ -24,10 +32,21 @@ export function InputBtn({
       <div
         className={`absolute left-0 h-full w-6 bg-secondary/70 flex justify-center items-center rounded-l-md text-gray-500 ${
           onclick ? "cursor-pointer hover:bg-secondary" : ""
-        } ${classicon}`}
+        } ${classicon ?? ""}`}
         onClick={onclick}
       >
-        <Icon size={15} />
+        {tooltip ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Icon size={15} />
+              </TooltipTrigger>
+              <TooltipContent>{tooltip}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <Icon size={15} />
+        )}
       </div>
       <Input
         type="number"
@@ -35,7 +54,7 @@ export function InputBtn({
         value={tar}
         placeholder={placeholder}
         onChange={(e) => Setter(e.target.valueAsNumber)}
-        className={`md:text-xs h-7 pl-7 ${classinput}`}
+        className={`md:text-xs h-6 pl-7 ${classinput}`}
         autoComplete="off"
       />
     </div>

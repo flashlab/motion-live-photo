@@ -1021,8 +1021,8 @@ function App() {
       }
     }
 
-    const outputVideoExt = videoTypes[convertedVideoExt];
-    const outputImageExt = imageTypes[convertedImageExt];
+    let outputVideoExt = videoTypes[convertedVideoExt];
+    let outputImageExt = imageTypes[convertedImageExt];
     const argsHead = ["-v", "level+verbose", "-y"];
     const ffmpegArgs = [
       ["-loglevel", "quiet", "-i", "empty.webm", "empty.mp4"],
@@ -1103,13 +1103,26 @@ function App() {
     const progListener = ({ progress: prog }: { progress: number }) => {
       setProgress(Math.round(Math.min(100, prog * 100)));
     };
+    const combinedMimeTypes = (ext: string) => {
+      return [...imageMimeTypes, ...videoMimeTypes][
+        [...imageTypes, ...videoTypes].indexOf(ext)
+      ];
+    };
     const runCommand = async (args: string[], isProbe?: boolean) => {
-      await ffmpeg[isProbe ? "ffprobe" : "exec"]([
+      const newArgs =
+        ((isConvert & 4) !== 0 &&
+          prompt(
+            t("prompt.editCommand") + "\n💡Hints:" +
+              "\n-i input.webm -vf scale=512:-1,fps=15 -c:v libwebp -lossless 1 -preset default -qscale 100 -pix_fmt yuva420p -loop 0 ouput.webp" +
+              "\n-i input.jpg -frames:v 1 -q:v 3 extract.jpg",
+            args.join(" ")
+          )?.split(" ")) || [""];
+      if (newArgs.length > 1) await ffmpeg[isProbe ? "ffprobe" : "exec"]([
         ...(isProbe ? ["-v", "error"] : argsHead),
-        ...(((isConvert & 4) !== 0 &&
-          prompt("Enter edit command", args.join(" "))?.split(" ")) ||
-          args),
+        ...newArgs,
       ]);
+      // return output file extension
+      return newArgs[newArgs.length - 1].split(".").pop() ?? "";
     };
     ffmpeg.on("progress", progListener);
     ffmpeg.on("log", logListener);
@@ -1119,14 +1132,15 @@ function App() {
           `input.${img.obj.ext}`,
           await fetchFile(img.obj.blob)
         );
-        await runCommand(ffmpegArgs[img.arg]);
+        outputImageExt = await runCommand(ffmpegArgs[img.arg]);
+        if (!outputImageExt) throw new Error(t("toast.err.wrongParams"));
         const fileData = (await ffmpeg.readFile(
           `output.${outputImageExt}`
         )) as Uint8Array<ArrayBuffer>;
         const imageBlob = new File(
           [fileData],
           img.obj.blob.name.replace(/\.[^.]+?$/, `_conv.${outputImageExt}`),
-          { type: imageMimeTypes[convertedImageExt] }
+          { type: combinedMimeTypes(outputImageExt) }
         );
         setConvertedImageUrl({
           blob: imageBlob,
@@ -1150,7 +1164,8 @@ function App() {
           await fetchFile(film.obj.blob)
         );
         if (film.arg === 4) {
-          await runCommand(ffmpegArgs[4], true);
+          const outputExt = await runCommand(ffmpegArgs[4], true);
+          if (outputExt !== "txt") throw new Error(t("toast.err.wrongParams"));
           const fileText = (await ffmpeg.readFile(
             "output.txt",
             "utf8"
@@ -1177,14 +1192,15 @@ function App() {
         } else if (film.arg === 3) {
           // pre excute with meaningless command to solve mp4-to-jpg error.
           await runCommand(ffmpegArgs[0]);
-          await runCommand(ffmpegArgs[3]);
+          outputImageExt = await runCommand(ffmpegArgs[3]);
+          if (!outputImageExt) throw new Error(t("toast.err.wrongParams"));
           const fileData = (await ffmpeg.readFile(
             `extract.${outputImageExt}`
           )) as Uint8Array<ArrayBuffer>;
           const extBlob = new File(
             [fileData],
             film.obj.blob.name.replace(/\.[^.]+?$/, `_cut.${outputImageExt}`),
-            { type: imageMimeTypes[convertedImageExt] }
+            { type: combinedMimeTypes(outputImageExt) }
           );
           setImageFile({
             blob: extBlob,
@@ -1199,7 +1215,8 @@ function App() {
               description: t("prompt.scaleNotMatch"),
             });
           }
-          await runCommand(ffmpegArgs[film.arg]);
+          outputVideoExt = await runCommand(ffmpegArgs[film.arg]);
+          if (!outputVideoExt) throw new Error(t("toast.err.wrongParams"));
 
           const fileData = (await ffmpeg.readFile(
             `output.${outputVideoExt}`
@@ -1210,7 +1227,7 @@ function App() {
               /(\.[^.]+)?$/,
               `output.${outputVideoExt}`
             ),
-            { type: videoMimeTypes[convertedVideoExt] }
+            { type: combinedMimeTypes(outputVideoExt) }
           );
           const newfile = URL.createObjectURL(videoBlob);
           setConvertedVideoUrl({
@@ -1780,7 +1797,7 @@ function App() {
                             <CircleAlert className="w-4 h-4" />
                           </h4>
                         </TooltipTrigger>
-                        <TooltipContent>{t("tips.videoArgs")}</TooltipContent>
+                        <TooltipContent>{t("tips.popBoxTitle")}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                     <div className="grid gap-2 text-xs">
@@ -1837,6 +1854,7 @@ function App() {
                               videoRef.current &&
                               setBeginStamp(videoRef.current.currentTime)
                             }
+                            tooltip={t("tips.cutVideoFrom")}
                             placeholder="1.23456"
                             classinput="rounded-r-none"
                           />
@@ -1848,6 +1866,7 @@ function App() {
                               videoRef.current &&
                               setStopStamp(videoRef.current.currentTime)
                             }
+                            tooltip={t("tips.cutVideoTo")}
                             placeholder="2.34567"
                             classinput="rounded-l-none"
                             classicon="rounded-l-none"
@@ -1892,7 +1911,7 @@ function App() {
                       <Camera />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-40">
+                  <PopoverContent className="w-45">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -1901,7 +1920,7 @@ function App() {
                             <CircleAlert className="w-4 h-4" />
                           </h4>
                         </TooltipTrigger>
-                        <TooltipContent>{t("tips.imageArgs")}</TooltipContent>
+                        <TooltipContent>{t("tips.popBoxTitle")}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                     <div className="grid gap-2 text-xs">
@@ -1947,28 +1966,18 @@ function App() {
                         />
                       </div>
                       <div className="grid gap-1.5">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <label>
-                                {t("label.snapshot")}
-                                <CircleAlert
-                                  size={14}
-                                  className="inline ml-1"
-                                />
-                              </label>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {t("tips.cutVideo")}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <InputBtn
-                          icon={Timer}
-                          tar={extractStamp}
-                          setter={setExtractStamp}
-                          placeholder="1.23456"
-                        />
+                        <div className="flex gap-2 items-center">
+                          <label className="whitespace-nowrap">
+                            {t("label.snapshot")}
+                          </label>
+                          <InputBtn
+                            icon={Timer}
+                            tar={extractStamp}
+                            setter={setExtractStamp}
+                            tooltip={t("tips.cutVideo")}
+                            placeholder="1.23456"
+                          />
+                        </div>
                         <div className="flex">
                           <Button
                             disabled={
